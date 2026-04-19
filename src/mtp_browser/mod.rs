@@ -60,9 +60,7 @@ impl MtpBrowser {
     }
 
     fn selected_row_info(&self, cx: &App) -> Option<(ObjectHandle, SharedString, bool)> {
-        let ix = self.selected_row?;
-        let row = self.table.read(cx).delegate().rows.get(ix)?;
-        Some((row.handle, row.name.clone(), row.is_folder))
+        self.row_entry(self.selected_row?, cx)
     }
 
     fn on_table_event(
@@ -74,8 +72,20 @@ impl MtpBrowser {
     ) {
         match event {
             TableEvent::SelectRow(row_ix) => {
-                self.selected_row = Some(*row_ix);
-                cx.notify();
+                let actual_count = self.table.read(cx).delegate().rows.len();
+                if *row_ix >= actual_count {
+                    // Always clear the table's internal selection — it sets selected_row
+                    // before emitting this event, so the padding row would otherwise render
+                    // as highlighted even when our tracked selection was already None.
+                    self.table.update(cx, |state, cx| state.clear_selection(cx));
+                    if self.selected_row.is_some() {
+                        self.selected_row = None;
+                        cx.notify();
+                    }
+                } else if self.selected_row != Some(*row_ix) {
+                    self.selected_row = Some(*row_ix);
+                    cx.notify();
+                }
             }
             TableEvent::DoubleClickedRow(row_ix) => {
                 let row_ix = *row_ix;
@@ -107,6 +117,11 @@ impl Render for MtpBrowser {
 
         div()
             .size_full()
+            .on_action(cx.listener(Self::on_context_import_here))
+            .on_action(cx.listener(Self::on_context_import_current))
+            .on_action(cx.listener(Self::on_context_export))
+            .on_action(cx.listener(Self::on_context_delete))
+            .on_action(cx.listener(Self::on_context_new_folder))
             .child(
                 h_flex()
                     .size_full()

@@ -1,5 +1,7 @@
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
 use mtp_rs::{Error as MtpError, MtpDevice, NewObjectInfo, ObjectHandle, StorageId};
@@ -54,6 +56,8 @@ impl From<io::Error> for MtpOpError {
 pub struct MtpClient {
     device: MtpDevice,
     active: StorageId,
+    // Some Android devices reject parent=0x00000000 at root; discovered lazily on first failure.
+    root_uses_all_handle: Arc<AtomicBool>,
 }
 
 impl MtpClient {
@@ -73,7 +77,25 @@ impl MtpClient {
             })
             .collect();
         let active = summaries[0].id;
-        Ok((Self { device, active }, summaries))
+        Ok((
+            Self {
+                device,
+                active,
+                root_uses_all_handle: Arc::new(AtomicBool::new(false)),
+            },
+            summaries,
+        ))
+    }
+
+    fn root_parent(&self, parent: Option<ObjectHandle>) -> Option<ObjectHandle> {
+        if parent.is_some() {
+            return parent;
+        }
+        if self.root_uses_all_handle.load(Ordering::Relaxed) {
+            Some(ObjectHandle::ALL)
+        } else {
+            None
+        }
     }
 
     pub fn set_active(&mut self, id: StorageId) {
@@ -113,7 +135,15 @@ impl MtpClient {
         name: &str,
     ) -> Result<(), MtpOpError> {
         let storage = self.device.storage(self.active).await?;
-        storage.create_folder(parent, name).await?;
+        let result = storage.create_folder(self.root_parent(parent), name).await;
+        if let Err(e) = result {
+            if needs_all_handle_retry(parent, &e) {
+                self.root_uses_all_handle.store(true, Ordering::Relaxed);
+                storage.create_folder(Some(ObjectHandle::ALL), name).await?;
+            } else {
+                return Err(e.into());
+            }
+        }
         Ok(())
     }
 
@@ -135,19 +165,29 @@ impl MtpClient {
             .unwrap_or_else(|| "unnamed".into());
         let size = tokio::fs::metadata(path).await?.len();
         let info = NewObjectInfo::file(file_name, size);
-        let file = tokio::fs::File::open(path).await?;
-        let stream = futures::stream::unfold(file, |mut f| async move {
-            let mut buf = vec![0u8; 64 * 1024];
-            match f.read(&mut buf).await {
-                Ok(0) => None,
-                Ok(n) => {
-                    buf.truncate(n);
-                    Some((Ok::<_, io::Error>(Bytes::from(buf)), f))
-                }
-                Err(e) => Some((Err(e), f)),
+
+        let result = {
+            let file = tokio::fs::File::open(path).await?;
+            let stream = file_read_stream(file);
+            storage
+                .upload(self.root_parent(parent), info.clone(), Box::pin(stream))
+                .await
+        };
+
+        // Android MTP quirk: some devices reject parent=0x00000000 at root and expect
+        // ObjectHandle::ALL (0xFFFFFFFF) instead — retry once and cache the discovery.
+        if let Err(e) = result {
+            if needs_all_handle_retry(parent, &e) {
+                self.root_uses_all_handle.store(true, Ordering::Relaxed);
+                let file = tokio::fs::File::open(path).await?;
+                let stream = file_read_stream(file);
+                storage
+                    .upload(Some(ObjectHandle::ALL), info, Box::pin(stream))
+                    .await?;
+            } else {
+                return Err(e.into());
             }
-        });
-        storage.upload(parent, info, Box::pin(stream)).await?;
+        }
         Ok(())
     }
 
@@ -162,6 +202,33 @@ impl MtpClient {
         file.flush().await?;
         Ok(())
     }
+}
+
+fn needs_all_handle_retry(parent: Option<ObjectHandle>, err: &mtp_rs::Error) -> bool {
+    parent.is_none()
+        && matches!(
+            err,
+            mtp_rs::Error::Protocol {
+                code: mtp_rs::ResponseCode::InvalidObjectHandle,
+                ..
+            }
+        )
+}
+
+fn file_read_stream(
+    file: tokio::fs::File,
+) -> impl futures::Stream<Item = Result<Bytes, io::Error>> {
+    futures::stream::unfold(file, |mut f| async move {
+        let mut buf = vec![0u8; 64 * 1024];
+        match f.read(&mut buf).await {
+            Ok(0) => None,
+            Ok(n) => {
+                buf.truncate(n);
+                Some((Ok(Bytes::from(buf)), f))
+            }
+            Err(e) => Some((Err(e), f)),
+        }
+    })
 }
 
 // ── Device listing ───────────────────────────────────────────────────────────

@@ -1,14 +1,19 @@
 use gpui::*;
+use gpui_component::menu::PopupMenu;
 use gpui_component::table::{Column, ColumnSort, DataTable, TableDelegate, TableState};
 use gpui_component::*;
 
 use super::MtpBrowser;
+use super::actions::{
+    ContextDelete, ContextExport, ContextImportCurrent, ContextImportHere, ContextNewFolder,
+};
 use crate::mtp::FileEntry;
 
 const COL_NAME: &str = "name";
 const COL_MODIFIED: &str = "modified";
 const COL_SIZE: &str = "size";
 const COL_KIND: &str = "kind";
+const PADDING_ROWS: usize = 5;
 
 pub struct FolderDelegate {
     pub rows: Vec<FileEntry>,
@@ -37,11 +42,61 @@ impl TableDelegate for FolderDelegate {
     }
 
     fn rows_count(&self, _cx: &App) -> usize {
-        self.rows.len()
+        self.rows.len() + PADDING_ROWS
     }
 
     fn column(&self, col_ix: usize, _cx: &App) -> Column {
         self.columns[col_ix].clone()
+    }
+
+    fn context_menu(
+        &mut self,
+        row_ix: usize,
+        menu: PopupMenu,
+        _: &mut Window,
+        _: &mut Context<TableState<Self>>,
+    ) -> PopupMenu {
+        let (menu, has_real_row) = match self.rows.get(row_ix) {
+            Some(row) => {
+                let m = if row.is_folder {
+                    let label = format!("Import into \"{}\"", row.name);
+                    menu.menu_with_icon(
+                        label,
+                        Icon::new(IconName::ArrowUp),
+                        Box::new(ContextImportHere { row_ix }),
+                    )
+                } else {
+                    menu.menu_with_icon(
+                        "Export…",
+                        Icon::new(IconName::ArrowDown),
+                        Box::new(ContextExport { row_ix }),
+                    )
+                };
+                (m, true)
+            }
+            None => (menu, false),
+        };
+        let menu = menu
+            .menu_with_icon(
+                "Import into current folder",
+                Icon::new(IconName::ArrowUp),
+                Box::new(ContextImportCurrent),
+            )
+            .separator()
+            .menu_with_icon(
+                "New Folder",
+                Icon::new(IconName::Plus),
+                Box::new(ContextNewFolder),
+            );
+        if has_real_row {
+            menu.separator().menu_with_icon(
+                "Delete",
+                Icon::new(IconName::Delete),
+                Box::new(ContextDelete { row_ix }),
+            )
+        } else {
+            menu
+        }
     }
 
     fn render_td(
@@ -51,7 +106,13 @@ impl TableDelegate for FolderDelegate {
         _: &mut Window,
         cx: &mut Context<TableState<Self>>,
     ) -> impl IntoElement {
+        if row_ix >= self.rows.len() {
+            return div().into_any_element();
+        }
         let row = &self.rows[row_ix];
+        let cell = |s: SharedString| -> AnyElement {
+            h_flex().h_full().items_center().child(s).into_any_element()
+        };
         match self.columns[col_ix].key.as_ref() {
             COL_NAME => {
                 let icon = if row.is_folder {
@@ -60,15 +121,16 @@ impl TableDelegate for FolderDelegate {
                     Icon::new(IconName::File).text_color(cx.theme().muted_foreground)
                 };
                 h_flex()
+                    .h_full()
                     .gap_2()
                     .items_center()
                     .child(icon)
                     .child(row.name.clone())
                     .into_any_element()
             }
-            COL_MODIFIED => row.modified.clone().into_any_element(),
-            COL_SIZE => row.size.clone().into_any_element(),
-            COL_KIND => row.kind.clone().into_any_element(),
+            COL_MODIFIED => cell(row.modified.clone()),
+            COL_SIZE => cell(row.size.clone()),
+            COL_KIND => cell(row.kind.clone()),
             _ => SharedString::default().into_any_element(),
         }
     }

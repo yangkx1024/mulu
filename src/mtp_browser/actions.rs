@@ -6,7 +6,27 @@ use gpui_component::*;
 
 use super::MtpBrowser;
 use crate::model::{Crumb, Session};
-use crate::mtp::{MtpClient, MtpOpError, StorageId, list_devices, spawn_mtp};
+use crate::mtp::{MtpClient, MtpOpError, ObjectHandle, StorageId, list_devices, spawn_mtp};
+
+#[derive(Clone, PartialEq, Debug, gpui::Action)]
+#[action(namespace = mtp_browser, no_json)]
+pub(super) struct ContextImportHere {
+    pub row_ix: usize,
+}
+
+#[derive(Clone, PartialEq, Debug, gpui::Action)]
+#[action(namespace = mtp_browser, no_json)]
+pub(super) struct ContextExport {
+    pub row_ix: usize,
+}
+
+#[derive(Clone, PartialEq, Debug, gpui::Action)]
+#[action(namespace = mtp_browser, no_json)]
+pub(super) struct ContextDelete {
+    pub row_ix: usize,
+}
+
+gpui::actions!(mtp_browser, [ContextImportCurrent, ContextNewFolder]);
 
 impl MtpBrowser {
     pub(super) fn refresh_devices(&mut self, cx: &mut Context<Self>) {
@@ -106,6 +126,101 @@ impl MtpBrowser {
         let Some((handle, name, _)) = self.selected_row_info(cx) else {
             return;
         };
+        self.delete_entry(handle, name, window, cx);
+    }
+
+    pub(super) fn row_entry(
+        &self,
+        row_ix: usize,
+        cx: &App,
+    ) -> Option<(ObjectHandle, SharedString, bool)> {
+        let row = self.table.read(cx).delegate().rows.get(row_ix)?;
+        Some((row.handle, row.name.clone(), row.is_folder))
+    }
+
+    fn import_into(&mut self, parent: Option<ObjectHandle>, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some("Import".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(paths))) = rx.await else {
+                return;
+            };
+            let count = paths.len();
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Uploading {count} file(s)…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move {
+                        for path in &paths {
+                            client.upload_file(parent, path).await?;
+                        }
+                        Ok::<(), MtpOpError>(())
+                    },
+                    |this, result, cx| match result {
+                        Ok(()) => this.load_current_folder(cx),
+                        Err(e) => {
+                            this.set_status(format!("Upload failed: {}", e.user_message()), cx)
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
+    }
+
+    fn export_entry(&mut self, handle: ObjectHandle, name: SharedString, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some("Export to…".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(dirs))) = rx.await else {
+                return;
+            };
+            let Some(dir) = dirs.into_iter().next() else {
+                return;
+            };
+            let dest = dir.join(name.as_ref());
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Exporting {name}…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move { client.download_to(handle, &dest).await },
+                    |this, result, cx| match result {
+                        Ok(()) => this.set_status("Exported", cx),
+                        Err(e) => {
+                            this.set_status(format!("Export failed: {}", e.user_message()), cx)
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
+    }
+
+    fn delete_entry(
+        &mut self,
+        handle: ObjectHandle,
+        name: SharedString,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
         let view = cx.entity().downgrade();
@@ -149,7 +264,58 @@ impl MtpBrowser {
         });
     }
 
+    pub(super) fn on_context_import_here(
+        &mut self,
+        action: &ContextImportHere,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((handle, _, true)) = self.row_entry(action.row_ix, cx) else {
+            return;
+        };
+        self.import_into(Some(handle), cx);
+    }
+
+    pub(super) fn on_context_import_current(
+        &mut self,
+        _: &ContextImportCurrent,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = &self.session else { return };
+        let parent = session.current_parent();
+        self.import_into(parent, cx);
+    }
+
+    pub(super) fn on_context_export(
+        &mut self,
+        action: &ContextExport,
+        _: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((handle, name, false)) = self.row_entry(action.row_ix, cx) else {
+            return;
+        };
+        self.export_entry(handle, name, cx);
+    }
+
+    pub(super) fn on_context_delete(
+        &mut self,
+        action: &ContextDelete,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((handle, name, _)) = self.row_entry(action.row_ix, cx) else {
+            return;
+        };
+        self.delete_entry(handle, name, window, cx);
+    }
+
     pub fn on_new_folder(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.new_folder(window, cx);
+    }
+
+    fn new_folder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
         let parent = session.current_parent();
@@ -206,44 +372,19 @@ impl MtpBrowser {
         });
     }
 
+    pub(super) fn on_context_new_folder(
+        &mut self,
+        _: &ContextNewFolder,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.new_folder(window, cx);
+    }
+
     pub fn on_import(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
         let Some(session) = &self.session else { return };
-        let client = session.client.clone();
         let parent = session.current_parent();
-
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: false,
-            multiple: true,
-            prompt: Some("Import".into()),
-        });
-
-        cx.spawn(async move |this, cx| {
-            let Ok(Ok(Some(paths))) = rx.await else {
-                return;
-            };
-            let count = paths.len();
-            let _ = this.update(cx, |this, cx| {
-                this.status = Some(format!("Uploading {count} file(s)…").into());
-                cx.notify();
-                spawn_mtp(
-                    cx,
-                    async move {
-                        for path in &paths {
-                            client.upload_file(parent, path).await?;
-                        }
-                        Ok::<(), MtpOpError>(())
-                    },
-                    |this, result, cx| match result {
-                        Ok(()) => this.load_current_folder(cx),
-                        Err(e) => {
-                            this.set_status(format!("Upload failed: {}", e.user_message()), cx)
-                        }
-                    },
-                );
-            });
-        })
-        .detach();
+        self.import_into(parent, cx);
     }
 
     pub fn on_export(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
@@ -253,37 +394,6 @@ impl MtpBrowser {
         if is_folder {
             return;
         }
-        let Some(session) = &self.session else { return };
-        let client = session.client.clone();
-
-        let rx = cx.prompt_for_paths(PathPromptOptions {
-            files: false,
-            directories: true,
-            multiple: false,
-            prompt: Some("Export to…".into()),
-        });
-
-        cx.spawn(async move |this, cx| {
-            let Ok(Ok(Some(mut dirs))) = rx.await else {
-                return;
-            };
-            let Some(dir) = dirs.pop() else { return };
-            let dest = dir.join(name.as_ref());
-            let _ = this.update(cx, |this, cx| {
-                this.status = Some(format!("Exporting {name}…").into());
-                cx.notify();
-                spawn_mtp(
-                    cx,
-                    async move { client.download_to(handle, &dest).await },
-                    |this, result, cx| match result {
-                        Ok(()) => this.set_status("Exported", cx),
-                        Err(e) => {
-                            this.set_status(format!("Export failed: {}", e.user_message()), cx)
-                        }
-                    },
-                );
-            });
-        })
-        .detach();
+        self.export_entry(handle, name, cx);
     }
 }
