@@ -1,0 +1,289 @@
+use gpui::*;
+use gpui_component::button::*;
+use gpui_component::dialog::{DialogButtonProps, DialogFooter};
+use gpui_component::input::{Input, InputState};
+use gpui_component::*;
+
+use super::MtpBrowser;
+use crate::model::{Crumb, Session};
+use crate::mtp::{MtpClient, MtpOpError, StorageId, list_devices, spawn_mtp};
+
+impl MtpBrowser {
+    pub(super) fn refresh_devices(&mut self, cx: &mut Context<Self>) {
+        match list_devices() {
+            Ok(devices) => {
+                self.status = if devices.is_empty() {
+                    Some("No MTP devices found".into())
+                } else {
+                    None
+                };
+                self.devices = devices;
+            }
+            Err(e) => {
+                self.status = Some(format!("Failed to list devices: {}", e.user_message()).into());
+            }
+        }
+        cx.notify();
+    }
+
+    pub(super) fn open_device(&mut self, location_id: u64, cx: &mut Context<Self>) {
+        self.status = Some("Connecting…".into());
+        cx.notify();
+
+        spawn_mtp(
+            cx,
+            async move { MtpClient::open(location_id).await },
+            move |this, result, cx| match result {
+                Ok((client, storages)) => {
+                    let root_name = storages[0].description.clone();
+                    this.session = Some(Session {
+                        client,
+                        device_location: location_id,
+                        storages,
+                        path: vec![Crumb {
+                            name: root_name,
+                            parent: None,
+                        }],
+                    });
+                    this.status = None;
+                    this.load_current_folder(cx);
+                }
+                Err(e) => {
+                    this.status = Some(e.user_message().into());
+                    cx.notify();
+                }
+            },
+        );
+    }
+
+    pub(super) fn select_storage(
+        &mut self,
+        storage_id: StorageId,
+        storage_name: SharedString,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = self.session.as_mut() else {
+            return;
+        };
+        session.reset_to_storage(storage_id, storage_name);
+        self.selected_row = None;
+        self.load_current_folder(cx);
+    }
+
+    pub(super) fn load_current_folder(&mut self, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+        let parent = session.current_parent();
+        let table = self.table.clone();
+
+        self.selected_row = None;
+        self.status = Some("Loading…".into());
+        cx.notify();
+
+        spawn_mtp(
+            cx,
+            async move { client.list(parent).await },
+            move |this, result, cx| {
+                match result {
+                    Ok(entries) => {
+                        let count = entries.len();
+                        table.update(cx, |state, cx| {
+                            state.delegate_mut().rows = entries;
+                            cx.notify();
+                        });
+                        this.status = Some(format!("{count} items").into());
+                    }
+                    Err(e) => {
+                        this.status = Some(format!("Error: {}", e.user_message()).into());
+                    }
+                }
+                cx.notify();
+            },
+        );
+    }
+
+    pub fn on_trash(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((handle, name, _)) = self.selected_row_info(cx) else {
+            return;
+        };
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+        let view = cx.entity().downgrade();
+        let desc_name = name.clone();
+
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let view = view.clone();
+            let name = desc_name.clone();
+            let client = client.clone();
+            alert
+                .title("Delete")
+                .description(format!("Delete \"{name}\"? This cannot be undone."))
+                .button_props(
+                    DialogButtonProps::default()
+                        .ok_text("Delete")
+                        .ok_variant(ButtonVariant::Danger)
+                        .cancel_text("Cancel")
+                        .show_cancel(true),
+                )
+                .on_ok(move |_, _, cx| {
+                    let client = client.clone();
+                    view.update(cx, |this, cx| {
+                        this.status = Some("Deleting…".into());
+                        cx.notify();
+                        spawn_mtp(
+                            cx,
+                            async move { client.delete(handle).await },
+                            |this, result, cx| match result {
+                                Ok(()) => {
+                                    this.selected_row = None;
+                                    this.load_current_folder(cx);
+                                }
+                                Err(e) => this
+                                    .set_status(format!("Delete failed: {}", e.user_message()), cx),
+                            },
+                        );
+                    })
+                    .ok();
+                    true
+                })
+        });
+    }
+
+    pub fn on_new_folder(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+        let parent = session.current_parent();
+        let view = cx.entity().downgrade();
+
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder("Folder name"));
+
+        window.open_dialog(cx, move |dialog, _, _| {
+            let input_for_create = input.clone();
+            let view = view.clone();
+            let client = client.clone();
+            dialog
+                .title("New Folder")
+                .child(v_flex().px_4().py_3().child(Input::new(&input)))
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            Button::new("cancel")
+                                .label("Cancel")
+                                .outline()
+                                .on_click(|_, window, cx| window.close_dialog(cx)),
+                        )
+                        .child({
+                            let view = view.clone();
+                            let client = client.clone();
+                            Button::new("create").label("Create").primary().on_click(
+                                move |_, window, cx| {
+                                    let name = input_for_create.read(cx).value().to_string();
+                                    if name.trim().is_empty() {
+                                        return;
+                                    }
+                                    let client = client.clone();
+                                    view.update(cx, |_this, cx| {
+                                        spawn_mtp(
+                                            cx,
+                                            async move {
+                                                client.create_folder(parent, &name).await
+                                            },
+                                            |this, result, cx| match result {
+                                                Ok(()) => this.load_current_folder(cx),
+                                                Err(e) => this.set_status(
+                                                    format!("Create failed: {}", e.user_message()),
+                                                    cx,
+                                                ),
+                                            },
+                                        );
+                                    })
+                                    .ok();
+                                    window.close_dialog(cx);
+                                },
+                            )
+                        }),
+                )
+        });
+    }
+
+    pub fn on_import(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+        let parent = session.current_parent();
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some("Import".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(paths))) = rx.await else {
+                return;
+            };
+            let count = paths.len();
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Uploading {count} file(s)…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move {
+                        for path in &paths {
+                            client.upload_file(parent, path).await?;
+                        }
+                        Ok::<(), MtpOpError>(())
+                    },
+                    |this, result, cx| match result {
+                        Ok(()) => this.load_current_folder(cx),
+                        Err(e) => {
+                            this.set_status(format!("Upload failed: {}", e.user_message()), cx)
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
+    }
+
+    pub fn on_export(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some((handle, name, is_folder)) = self.selected_row_info(cx) else {
+            return;
+        };
+        if is_folder {
+            return;
+        }
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some("Export to…".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(mut dirs))) = rx.await else {
+                return;
+            };
+            let Some(dir) = dirs.pop() else { return };
+            let dest = dir.join(name.as_ref());
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Exporting {name}…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move { client.download_to(handle, &dest).await },
+                    |this, result, cx| match result {
+                        Ok(()) => this.set_status("Exported", cx),
+                        Err(e) => {
+                            this.set_status(format!("Export failed: {}", e.user_message()), cx)
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
+    }
+}

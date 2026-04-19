@@ -1,9 +1,12 @@
-mod file_browser;
+mod format;
+mod model;
+mod mtp;
+mod mtp_browser;
 
-use file_browser::FileBrowser;
 use gpui::*;
 use gpui_component::*;
 use gpui_component_assets::Assets;
+use mtp_browser::MtpBrowser;
 
 fn main() {
     gpui_platform::application()
@@ -21,7 +24,7 @@ fn main() {
                         ..Default::default()
                     },
                     |window, cx| {
-                        let view = cx.new(|cx| FileBrowser::new(window, cx));
+                        let view = cx.new(|cx| MtpBrowser::new(window, cx));
                         cx.new(|cx| Root::new(view, window, cx).bg(cx.theme().background))
                     },
                 )
