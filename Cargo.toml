@@ -9,7 +9,9 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["fo
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 mtp-rs = "0.13.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "fs"] }
+bytes = "1"
+futures = "0.3"
 
 # `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
 # `mtp-rs` v0.11.0 -> `nusb` v0.2 use `core-foundation = "0.10.1"`.

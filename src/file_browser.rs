@@ -1,18 +1,22 @@
 use std::sync::OnceLock;
 use std::time::Duration;
 
+use bytes::Bytes;
 use gpui::prelude::FluentBuilder as _;
 use gpui::*;
 use gpui_component::animation::{Transition, ease_in_out_cubic};
 use gpui_component::breadcrumb::{Breadcrumb, BreadcrumbItem};
 use gpui_component::button::*;
+use gpui_component::dialog::{DialogButtonProps, DialogFooter};
+use gpui_component::input::{Input, InputState};
 use gpui_component::progress::Progress;
 use gpui_component::sidebar::SidebarToggleButton;
 use gpui_component::table::{Column, ColumnSort, DataTable, TableDelegate, TableEvent, TableState};
 use gpui_component::*;
 use mtp_rs::mtp::MtpDeviceInfo;
 use mtp_rs::ptp::ObjectInfo;
-use mtp_rs::{DateTime, Error as MtpError, MtpDevice, ObjectHandle, StorageId};
+use mtp_rs::{DateTime, Error as MtpError, MtpDevice, NewObjectInfo, ObjectHandle, StorageId};
+use tokio::io::AsyncWriteExt as _;
 use tokio::runtime::Runtime;
 
 // ── Tokio runtime bridge ─────────────────────────────────────────────────────
@@ -166,6 +170,7 @@ pub struct FileBrowser {
     devices: Vec<MtpDeviceInfo>,
     session: Option<Session>,
     status: Option<SharedString>,
+    selected_row: Option<usize>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -192,6 +197,7 @@ impl FileBrowser {
             devices: Vec::new(),
             session: None,
             status: None,
+            selected_row: None,
             _subscriptions: subscriptions,
         };
         this.refresh_devices(cx);
@@ -287,6 +293,7 @@ impl FileBrowser {
             name: storage_name,
             parent: None,
         }];
+        self.selected_row = None;
         self.load_current_folder(cx);
     }
 
@@ -299,6 +306,7 @@ impl FileBrowser {
         let parent = session.path.last().and_then(|c| c.parent);
         let table = self.table.clone();
 
+        self.selected_row = None;
         self.status = Some("Loading…".into());
         cx.notify();
 
@@ -362,6 +370,16 @@ impl FileBrowser {
         }
     }
 
+    fn current_parent(&self) -> Option<ObjectHandle> {
+        self.session.as_ref()?.path.last().and_then(|c| c.parent)
+    }
+
+    fn selected_row_info(&self, cx: &App) -> Option<(ObjectHandle, SharedString, bool)> {
+        let ix = self.selected_row?;
+        let row = self.table.read(cx).delegate().rows.get(ix)?;
+        Some((row.handle, row.name.clone(), row.is_folder))
+    }
+
     fn on_table_event(
         &mut self,
         _: &Entity<TableState<FolderDelegate>>,
@@ -369,27 +387,281 @@ impl FileBrowser {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let TableEvent::DoubleClickedRow(row_ix) = event {
-            let row_ix = *row_ix;
-            let (is_folder, handle, name) = self
-                .table
-                .read(cx)
-                .delegate()
-                .rows
-                .get(row_ix)
-                .map_or((false, ObjectHandle::ROOT, SharedString::default()), |r| {
-                    (r.is_folder, r.handle, r.name.clone())
-                });
-            if is_folder {
-                if let Some(session) = self.session.as_mut() {
-                    session.path.push(Crumb {
-                        name,
-                        parent: Some(handle),
-                    });
-                }
-                self.load_current_folder(cx);
+        match event {
+            TableEvent::SelectRow(row_ix) => {
+                self.selected_row = Some(*row_ix);
+                cx.notify();
             }
+            TableEvent::DoubleClickedRow(row_ix) => {
+                let row_ix = *row_ix;
+                let (is_folder, handle, name) = self
+                    .table
+                    .read(cx)
+                    .delegate()
+                    .rows
+                    .get(row_ix)
+                    .map_or((false, ObjectHandle::ROOT, SharedString::default()), |r| {
+                        (r.is_folder, r.handle, r.name.clone())
+                    });
+                if is_folder {
+                    if let Some(session) = self.session.as_mut() {
+                        session.path.push(Crumb {
+                            name,
+                            parent: Some(handle),
+                        });
+                    }
+                    self.load_current_folder(cx);
+                }
+            }
+            _ => {}
         }
+    }
+
+    // ── Toolbar action handlers ───────────────────────────────────────────────
+
+    fn on_trash(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((handle, name, _)) = self.selected_row_info(cx) else {
+            return;
+        };
+        let Some(session) = &self.session else {
+            return;
+        };
+        let device = session.device.clone();
+        let storage_id = session.active_storage;
+        let view = cx.entity().downgrade();
+        let desc_name = name.clone();
+
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let view = view.clone();
+            let name = desc_name.clone();
+            let device_for_ok = device.clone();
+            alert
+                .title("Delete")
+                .description(format!("Delete \"{name}\"? This cannot be undone."))
+                .button_props(
+                    DialogButtonProps::default()
+                        .ok_text("Delete")
+                        .ok_variant(ButtonVariant::Danger)
+                        .cancel_text("Cancel")
+                        .show_cancel(true),
+                )
+                .on_ok(move |_, _, cx| {
+                    let device = device_for_ok.clone();
+                    view.update(cx, |this, cx| {
+                        this.status = Some("Deleting…".into());
+                        cx.notify();
+                        spawn_mtp(
+                            cx,
+                            async move {
+                                let storage = device.storage(storage_id).await?;
+                                storage.delete(handle).await
+                            },
+                            |this, result, cx| match result {
+                                Ok(()) => {
+                                    this.selected_row = None;
+                                    this.load_current_folder(cx);
+                                }
+                                Err(e) => {
+                                    this.status = Some(format!("Delete failed: {e}").into());
+                                    cx.notify();
+                                }
+                            },
+                        );
+                    })
+                    .ok();
+                    true
+                })
+        });
+    }
+
+    fn on_new_folder(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else {
+            return;
+        };
+        let device = session.device.clone();
+        let storage_id = session.active_storage;
+        let parent = self.current_parent();
+        let view = cx.entity().downgrade();
+
+        let input = cx.new(|cx| InputState::new(window, cx).placeholder("Folder name"));
+        let input_for_ok = input.clone();
+
+        window.open_dialog(cx, move |dialog, _, _| {
+            let input = input.clone();
+            let input_for_ok = input_for_ok.clone();
+            let view = view.clone();
+            let device = device.clone();
+            dialog
+                .title("New Folder")
+                .child(
+                    v_flex()
+                        .px_4()
+                        .py_3()
+                        .child(Input::new(&input)),
+                )
+                .footer(
+                    DialogFooter::new()
+                        .child(
+                            Button::new("cancel").label("Cancel").outline().on_click(
+                                |_, window, cx| window.close_dialog(cx),
+                            ),
+                        )
+                        .child({
+                            let input_for_ok = input_for_ok.clone();
+                            let view = view.clone();
+                            let device = device.clone();
+                            Button::new("create").label("Create").primary().on_click(
+                                move |_, window, cx| {
+                                    let name = input_for_ok.read(cx).value().to_string();
+                                    if name.trim().is_empty() {
+                                        return;
+                                    }
+                                    let device = device.clone();
+                                    view.update(cx, |_this, cx| {
+                                        spawn_mtp(
+                                            cx,
+                                            async move {
+                                                let storage = device.storage(storage_id).await?;
+                                                storage
+                                                    .create_folder(parent, &name)
+                                                    .await
+                                                    .map(|_| ())
+                                            },
+                                            |this, result, cx| match result {
+                                                Ok(()) => this.load_current_folder(cx),
+                                                Err(e) => {
+                                                    this.status =
+                                                        Some(format!("Create failed: {e}").into());
+                                                    cx.notify();
+                                                }
+                                            },
+                                        );
+                                    })
+                                    .ok();
+                                    window.close_dialog(cx);
+                                },
+                            )
+                        }),
+                )
+        });
+    }
+
+    fn on_import(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some(session) = &self.session else {
+            return;
+        };
+        let device = session.device.clone();
+        let storage_id = session.active_storage;
+        let parent = self.current_parent();
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some("Import".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(paths))) = rx.await else {
+                return;
+            };
+            let count = paths.len();
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Uploading {count} file(s)…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move {
+                        let storage = device.storage(storage_id).await?;
+                        for path in &paths {
+                            let file_name = path
+                                .file_name()
+                                .map(|s| s.to_string_lossy().into_owned())
+                                .unwrap_or_else(|| "unnamed".into());
+                            let data = tokio::fs::read(path).await.map_err(MtpError::Io)?;
+                            let size = data.len() as u64;
+                            let info = NewObjectInfo::file(file_name, size);
+                            let stream = futures::stream::iter(vec![
+                                Ok::<_, std::io::Error>(Bytes::from(data)),
+                            ]);
+                            storage
+                                .upload(parent, info, Box::pin(stream))
+                                .await?;
+                        }
+                        Ok::<(), MtpError>(())
+                    },
+                    |this, result, cx| match result {
+                        Ok(()) => this.load_current_folder(cx),
+                        Err(e) => {
+                            this.status = Some(format!("Upload failed: {e}").into());
+                            cx.notify();
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
+    }
+
+    fn on_export(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+        let Some((handle, name, is_folder)) = self.selected_row_info(cx) else {
+            return;
+        };
+        if is_folder {
+            return;
+        }
+        let Some(session) = &self.session else {
+            return;
+        };
+        let device = session.device.clone();
+        let storage_id = session.active_storage;
+
+        let rx = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: Some("Export to…".into()),
+        });
+
+        cx.spawn(async move |this, cx| {
+            let Ok(Ok(Some(mut dirs))) = rx.await else {
+                return;
+            };
+            let Some(dir) = dirs.pop() else {
+                return;
+            };
+            let dest = dir.join(name.as_ref());
+            let _ = this.update(cx, |this, cx| {
+                this.status = Some(format!("Exporting {name}…").into());
+                cx.notify();
+                spawn_mtp(
+                    cx,
+                    async move {
+                        let storage = device.storage(storage_id).await?;
+                        let mut dl = storage.download_stream(handle).await?;
+                        let mut file =
+                            tokio::fs::File::create(&dest).await.map_err(MtpError::Io)?;
+                        while let Some(chunk) = dl.next_chunk().await {
+                            let bytes = chunk?;
+                            file.write_all(&bytes).await.map_err(MtpError::Io)?;
+                        }
+                        file.flush().await.map_err(MtpError::Io)?;
+                        Ok::<(), MtpError>(())
+                    },
+                    |this, result, cx| match result {
+                        Ok(()) => {
+                            this.status = Some("Exported".into());
+                            cx.notify();
+                        }
+                        Err(e) => {
+                            this.status = Some(format!("Export failed: {e}").into());
+                            cx.notify();
+                        }
+                    },
+                );
+            });
+        })
+        .detach();
     }
 }
 
@@ -637,7 +909,15 @@ impl Render for FileBrowser {
 
         let status_text = self.status.clone().unwrap_or_else(|| "0 items".into());
 
-        h_flex().size_full().child(animated_sidebar).child(
+        let has_session = self.session.is_some();
+        let has_selection = self.selected_row.is_some();
+
+        let dialog_layer = Root::render_dialog_layer(window, cx);
+        let notification_layer = Root::render_notification_layer(window, cx);
+
+        div()
+            .size_full()
+            .child(h_flex().size_full().child(animated_sidebar).child(
             v_flex()
                 .flex_1()
                 .h_full()
@@ -673,10 +953,26 @@ impl Render for FileBrowser {
                             h_flex()
                                 .gap_1()
                                 .items_center()
-                                .child(tool_btn("import", IconName::ArrowUp))
-                                .child(tool_btn("export", IconName::ArrowDown))
-                                .child(tool_btn("new-folder", IconName::Plus))
-                                .child(tool_btn("trash", IconName::Delete))
+                                .child(
+                                    tool_btn("import", IconName::ArrowUp)
+                                        .disabled(!has_session)
+                                        .on_click(cx.listener(Self::on_import)),
+                                )
+                                .child(
+                                    tool_btn("export", IconName::ArrowDown)
+                                        .disabled(!has_selection)
+                                        .on_click(cx.listener(Self::on_export)),
+                                )
+                                .child(
+                                    tool_btn("new-folder", IconName::Plus)
+                                        .disabled(!has_session)
+                                        .on_click(cx.listener(Self::on_new_folder)),
+                                )
+                                .child(
+                                    tool_btn("trash", IconName::Delete)
+                                        .disabled(!has_selection)
+                                        .on_click(cx.listener(Self::on_trash)),
+                                )
                                 .child(div().w(px(8.)))
                                 .child(tool_btn("info", IconName::Info)),
                         ),
@@ -697,6 +993,8 @@ impl Render for FileBrowser {
                         .text_color(cx.theme().muted_foreground)
                         .child(status_text),
                 ),
-        )
+            ))
+            .children(dialog_layer)
+            .children(notification_layer)
     }
 }
