@@ -1,43 +1,32 @@
+mod file_browser;
+
+use file_browser::FileBrowser;
 use gpui::*;
 use gpui_component::*;
-use gpui_component::button::*;
-use gpui::prelude::FluentBuilder;
-
-pub struct Example;
-impl Render for Example {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .v_flex()
-            .gap_2()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .child("Hello, World!")
-            .child(
-                Button::new("ok")
-                    .primary()
-                    .label("Let's Go!")
-                    .on_click(|_, _, _| println!("Clicked!")),
-            )
-    }
-}
+use gpui_component_assets::Assets;
 
 fn main() {
-    gpui_platform::application().run(move |cx| {
-        // This must be called before using any GPUI Component features.
-        gpui_component::init(cx);
+    gpui_platform::application()
+        .with_assets(Assets)
+        .run(move |cx| {
+            gpui_component::init(cx);
 
-        cx.spawn(async move |cx| {
-            cx.open_window(WindowOptions::default(), |window, cx| {
-                let view = cx.new(|_| Example);
-                // This first level on the window, should be a Root.
-                cx.new(|cx| {
-                    // You can refine the root view style by yourself.
-                    Root::new(view, window, cx).bg(cx.theme().background)
-                })
+            cx.spawn(async move |cx| {
+                cx.open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(Bounds {
+                            origin: point(px(100.), px(100.)),
+                            size: size(px(940.), px(620.)),
+                        })),
+                        ..Default::default()
+                    },
+                    |window, cx| {
+                        let view = cx.new(|cx| FileBrowser::new(window, cx));
+                        cx.new(|cx| Root::new(view, window, cx).bg(cx.theme().background))
+                    },
+                )
+                .expect("Failed to open window");
             })
-            .expect("Failed to open window");
-        })
-        .detach();
-    });
+            .detach();
+        });
 }
