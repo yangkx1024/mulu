@@ -108,7 +108,9 @@ impl MtpBrowser {
                     Ok(entries) => {
                         let count = entries.len();
                         table.update(cx, |state, cx| {
-                            state.delegate_mut().rows = entries;
+                            let delegate = state.delegate_mut();
+                            delegate.rows = entries;
+                            delegate.sort_default();
                             cx.notify();
                         });
                         this.status = Some(format!("{count} items").into());

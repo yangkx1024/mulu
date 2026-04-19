@@ -34,6 +34,27 @@ impl FolderDelegate {
             ],
         }
     }
+
+    pub fn sort_default(&mut self) {
+        self.sort_rows(COL_NAME, false);
+    }
+
+    fn sort_rows(&mut self, key: &str, reverse: bool) {
+        self.rows.sort_by(|a, b| {
+            let by_kind = b.is_folder.cmp(&a.is_folder);
+            if by_kind != std::cmp::Ordering::Equal {
+                return by_kind;
+            }
+            let ord = match key {
+                COL_NAME => a.name.cmp(&b.name),
+                COL_MODIFIED => a.modified.cmp(&b.modified),
+                COL_SIZE => a.size.cmp(&b.size),
+                COL_KIND => a.kind.cmp(&b.kind),
+                _ => std::cmp::Ordering::Equal,
+            };
+            if reverse { ord.reverse() } else { ord }
+        });
+    }
 }
 
 impl TableDelegate for FolderDelegate {
@@ -144,20 +165,7 @@ impl TableDelegate for FolderDelegate {
     ) {
         let key = self.columns[col_ix].key.clone();
         let reverse = matches!(sort, ColumnSort::Descending);
-        self.rows.sort_by(|a, b| {
-            let by_kind = b.is_folder.cmp(&a.is_folder);
-            if by_kind != std::cmp::Ordering::Equal {
-                return by_kind;
-            }
-            let ord = match key.as_ref() {
-                COL_NAME => a.name.cmp(&b.name),
-                COL_MODIFIED => a.modified.cmp(&b.modified),
-                COL_SIZE => a.size.cmp(&b.size),
-                COL_KIND => a.kind.cmp(&b.kind),
-                _ => std::cmp::Ordering::Equal,
-            };
-            if reverse { ord.reverse() } else { ord }
-        });
+        self.sort_rows(&key, reverse);
     }
 }
 
