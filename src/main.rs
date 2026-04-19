@@ -1,113 +1,43 @@
-#![cfg_attr(target_family = "wasm", no_main)]
+use gpui::*;
+use gpui_component::*;
+use gpui_component::button::*;
+use gpui::prelude::FluentBuilder;
 
-use gpui::{
-    App, Bounds, Context, SharedString, Window, WindowBounds, WindowOptions, div, prelude::*, px,
-    rgb, size,
-};
-use gpui_platform::application;
-
-struct HelloWorld {
-    text: SharedString,
-}
-
-impl Render for HelloWorld {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+pub struct Example;
+impl Render for Example {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
-            .flex()
-            .flex_col()
-            .gap_3()
-            .bg(rgb(0x505050))
-            .size(px(500.0))
-            .justify_center()
+            .v_flex()
+            .gap_2()
+            .size_full()
             .items_center()
-            .shadow_lg()
-            .border_1()
-            .border_color(rgb(0x0000ff))
-            .text_xl()
-            .text_color(rgb(0xffffff))
-            .child(format!("Hello, {}!", &self.text))
+            .justify_center()
+            .child("Hello, World!")
             .child(
-                div()
-                    .flex()
-                    .gap_2()
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::red())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::green())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::blue())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::yellow())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::black())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .rounded_md()
-                            .border_color(gpui::white()),
-                    )
-                    .child(
-                        div()
-                            .size_8()
-                            .bg(gpui::white())
-                            .border_1()
-                            .border_dashed()
-                            .rounded_md()
-                            .border_color(gpui::black()),
-                    ),
+                Button::new("ok")
+                    .primary()
+                    .label("Let's Go!")
+                    .on_click(|_, _, _| println!("Clicked!")),
             )
     }
 }
 
-fn run_example() {
-    application().run(|cx: &mut App| {
-        let bounds = Bounds::centered(None, size(px(500.), px(500.0)), cx);
-        cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                ..Default::default()
-            },
-            |_, cx| {
-                cx.new(|_| HelloWorld {
-                    text: "World".into(),
-                })
-            },
-        )
-        .unwrap();
-        cx.activate(true);
-    });
-}
-
 fn main() {
-    run_example();
+    gpui_platform::application().run(move |cx| {
+        // This must be called before using any GPUI Component features.
+        gpui_component::init(cx);
+
+        cx.spawn(async move |cx| {
+            cx.open_window(WindowOptions::default(), |window, cx| {
+                let view = cx.new(|_| Example);
+                // This first level on the window, should be a Root.
+                cx.new(|cx| {
+                    // You can refine the root view style by yourself.
+                    Root::new(view, window, cx).bg(cx.theme().background)
+                })
+            })
+            .expect("Failed to open window");
+        })
+        .detach();
+    });
 }
