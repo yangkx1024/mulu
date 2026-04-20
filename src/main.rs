@@ -8,10 +8,32 @@ use gpui_component::*;
 use gpui_component_assets::Assets;
 use mtp_browser::MtpBrowser;
 
+rust_i18n::i18n!("locales", fallback = "en");
+
 pub struct ThemeAutoFollow(pub bool);
 impl Global for ThemeAutoFollow {}
 
+pub fn set_app_locale(locale: &str) {
+    gpui_component::set_locale(locale);
+}
+
+fn detect_system_locale() -> &'static str {
+    let raw = sys_locale::get_locale().unwrap_or_default().to_lowercase();
+    if raw.starts_with("zh") {
+        let traditional = raw
+            .split(|c| c == '-' || c == '_')
+            .any(|s| matches!(s, "hant" | "tw" | "hk" | "mo"));
+        if traditional { "zh-HK" } else { "zh-CN" }
+    } else if raw.starts_with("ja") {
+        "ja"
+    } else {
+        "en"
+    }
+}
+
 fn main() {
+    set_app_locale(detect_system_locale());
+
     gpui_platform::application()
         .with_quit_mode(QuitMode::LastWindowClosed)
         .with_assets(Assets)

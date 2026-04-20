@@ -3,6 +3,7 @@ use gpui_component::button::*;
 use gpui_component::dialog::{DialogButtonProps, DialogFooter};
 use gpui_component::input::{Input, InputState};
 use gpui_component::*;
+use rust_i18n::t;
 
 use super::MtpBrowser;
 use crate::model::{Crumb, Session};
@@ -10,7 +11,9 @@ use crate::mtp::{
     DeviceSummary, MtpClient, MtpOpError, ObjectHandle, StorageId, list_devices, spawn_mtp,
 };
 
-pub(super) const NO_DEVICES_FOUND: &str = "No MTP devices found";
+pub(super) fn no_devices_found() -> SharedString {
+    t!("status.no_devices").to_string().into()
+}
 
 #[derive(Clone, PartialEq, Debug, gpui::Action)]
 #[action(namespace = mtp_browser, no_json)]
@@ -45,8 +48,11 @@ impl MtpBrowser {
         let new_devices = match result {
             Ok(d) => d,
             Err(e) => {
-                self.status =
-                    Some(format!("Failed to list devices: {}", e.user_message()).into());
+                self.status = Some(
+                    t!("error.list_devices_failed", message = e.user_message())
+                        .to_string()
+                        .into(),
+                );
                 cx.notify();
                 return;
             }
@@ -65,13 +71,26 @@ impl MtpBrowser {
             self.close_session(cx);
         } else {
             self.status = if self.devices.is_empty() {
-                Some(NO_DEVICES_FOUND.into())
+                Some(no_devices_found())
             } else {
                 None
             };
         }
 
         cx.notify();
+    }
+
+    pub(super) fn on_locale_changed(&mut self, cx: &mut Context<Self>) {
+        if self.session.is_some() {
+            let count = self.table.read(cx).delegate().rows.len();
+            self.status = Some(t!("status.items", count = count).to_string().into());
+        } else if self.status.is_some() {
+            self.status = if self.devices.is_empty() {
+                Some(no_devices_found())
+            } else {
+                Some(t!("status.disconnected").to_string().into())
+            };
+        }
     }
 
     pub(super) fn close_session(&mut self, cx: &mut Context<Self>) {
@@ -82,14 +101,14 @@ impl MtpBrowser {
             state.clear_selection(cx);
         });
         self.status = if self.devices.is_empty() {
-            Some(NO_DEVICES_FOUND.into())
+            Some(no_devices_found())
         } else {
-            Some("Device disconnected".into())
+            Some(t!("status.disconnected").to_string().into())
         };
     }
 
     pub(super) fn open_device(&mut self, location_id: u64, cx: &mut Context<Self>) {
-        self.status = Some("Connecting…".into());
+        self.status = Some(t!("status.connecting").to_string().into());
         cx.notify();
 
         spawn_mtp(
@@ -143,7 +162,7 @@ impl MtpBrowser {
 
         self.selected_row = None;
         self.table.update(cx, |state, cx| state.clear_selection(cx));
-        self.status = Some("Loading…".into());
+        self.status = Some(t!("status.loading").to_string().into());
         cx.notify();
 
         spawn_mtp(
@@ -168,10 +187,15 @@ impl MtpBrowser {
                                 cx.notify();
                             }
                         });
-                        this.status = Some(format!("{count} items").into());
+                        this.status =
+                            Some(t!("status.items", count = count).to_string().into());
                     }
                     Err(e) => {
-                        this.status = Some(format!("Error: {}", e.user_message()).into());
+                        this.status = Some(
+                            t!("error.error_prefix", message = e.user_message())
+                                .to_string()
+                                .into(),
+                        );
                     }
                 }
                 cx.notify();
@@ -203,7 +227,7 @@ impl MtpBrowser {
             files: true,
             directories: false,
             multiple: true,
-            prompt: Some("Import".into()),
+            prompt: Some(t!("prompt.import").to_string().into()),
         });
 
         cx.spawn(async move |this, cx| {
@@ -212,7 +236,8 @@ impl MtpBrowser {
             };
             let count = paths.len();
             let _ = this.update(cx, |this, cx| {
-                this.status = Some(format!("Uploading {count} file(s)…").into());
+                this.status =
+                    Some(t!("status.uploading", count = count).to_string().into());
                 cx.notify();
                 spawn_mtp(
                     cx,
@@ -224,9 +249,10 @@ impl MtpBrowser {
                     },
                     |this, result, cx| match result {
                         Ok(()) => this.load_current_folder(None, cx),
-                        Err(e) => {
-                            this.set_status(format!("Upload failed: {}", e.user_message()), cx)
-                        }
+                        Err(e) => this.set_status(
+                            t!("error.upload_failed", message = e.user_message()).to_string(),
+                            cx,
+                        ),
                     },
                 );
             });
@@ -242,7 +268,7 @@ impl MtpBrowser {
             files: false,
             directories: true,
             multiple: false,
-            prompt: Some("Export to…".into()),
+            prompt: Some(t!("prompt.export_to").to_string().into()),
         });
 
         cx.spawn(async move |this, cx| {
@@ -254,16 +280,21 @@ impl MtpBrowser {
             };
             let dest = dir.join(name.as_ref());
             let _ = this.update(cx, |this, cx| {
-                this.status = Some(format!("Exporting {name}…").into());
+                this.status = Some(
+                    t!("status.exporting", name = name.as_ref())
+                        .to_string()
+                        .into(),
+                );
                 cx.notify();
                 spawn_mtp(
                     cx,
                     async move { client.download_to(handle, &dest).await },
                     |this, result, cx| match result {
-                        Ok(()) => this.set_status("Exported", cx),
-                        Err(e) => {
-                            this.set_status(format!("Export failed: {}", e.user_message()), cx)
-                        }
+                        Ok(()) => this.set_status(t!("status.exported").to_string(), cx),
+                        Err(e) => this.set_status(
+                            t!("error.export_failed", message = e.user_message()).to_string(),
+                            cx,
+                        ),
                     },
                 );
             });
@@ -288,19 +319,21 @@ impl MtpBrowser {
             let name = desc_name.clone();
             let client = client.clone();
             alert
-                .title("Delete")
-                .description(format!("Delete \"{name}\"? This cannot be undone."))
+                .title(t!("dialog.delete.title").to_string())
+                .description(
+                    t!("dialog.delete.description", name = name.as_ref()).to_string(),
+                )
                 .button_props(
                     DialogButtonProps::default()
-                        .ok_text("Delete")
+                        .ok_text(t!("dialog.delete.ok").to_string())
                         .ok_variant(ButtonVariant::Danger)
-                        .cancel_text("Cancel")
+                        .cancel_text(t!("dialog.cancel").to_string())
                         .show_cancel(true),
                 )
                 .on_ok(move |_, _, cx| {
                     let client = client.clone();
                     view.update(cx, |this, cx| {
-                        this.status = Some("Deleting…".into());
+                        this.status = Some(t!("status.deleting").to_string().into());
                         cx.notify();
                         spawn_mtp(
                             cx,
@@ -310,8 +343,11 @@ impl MtpBrowser {
                                     this.selected_row = None;
                                     this.load_current_folder(None, cx);
                                 }
-                                Err(e) => this
-                                    .set_status(format!("Delete failed: {}", e.user_message()), cx),
+                                Err(e) => this.set_status(
+                                    t!("error.delete_failed", message = e.user_message())
+                                        .to_string(),
+                                    cx,
+                                ),
                             },
                         );
                     })
@@ -378,28 +414,32 @@ impl MtpBrowser {
         let parent = session.current_parent();
         let view = cx.entity().downgrade();
 
-        let input = cx.new(|cx| InputState::new(window, cx).placeholder("Folder name"));
+        let input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("dialog.new_folder.placeholder").to_string())
+        });
 
         window.open_dialog(cx, move |dialog, _, _| {
             let input_for_create = input.clone();
             let view = view.clone();
             let client = client.clone();
             dialog
-                .title("New Folder")
+                .title(t!("dialog.new_folder.title").to_string())
                 .child(v_flex().px_4().py_3().child(Input::new(&input)))
                 .footer(
                     DialogFooter::new()
                         .child(
                             Button::new("cancel")
-                                .label("Cancel")
+                                .label(t!("dialog.cancel").to_string())
                                 .outline()
                                 .on_click(|_, window, cx| window.close_dialog(cx)),
                         )
                         .child({
                             let view = view.clone();
                             let client = client.clone();
-                            Button::new("create").label("Create").primary().on_click(
-                                move |_, window, cx| {
+                            Button::new("create")
+                                .label(t!("dialog.new_folder.create").to_string())
+                                .primary()
+                                .on_click(move |_, window, cx| {
                                     let name = input_for_create.read(cx).value().to_string();
                                     if name.trim().is_empty() {
                                         return;
@@ -414,7 +454,11 @@ impl MtpBrowser {
                                             |this, result, cx| match result {
                                                 Ok(()) => this.load_current_folder(None, cx),
                                                 Err(e) => this.set_status(
-                                                    format!("Create failed: {}", e.user_message()),
+                                                    t!(
+                                                        "error.create_failed",
+                                                        message = e.user_message()
+                                                    )
+                                                    .to_string(),
                                                     cx,
                                                 ),
                                             },
@@ -422,8 +466,7 @@ impl MtpBrowser {
                                     })
                                     .ok();
                                     window.close_dialog(cx);
-                                },
-                            )
+                                })
                         }),
                 )
         });

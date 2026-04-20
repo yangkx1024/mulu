@@ -5,6 +5,7 @@ use gpui::*;
 use gpui_component::animation::{Transition, ease_in_out_cubic};
 use gpui_component::progress::Progress;
 use gpui_component::*;
+use rust_i18n::t;
 
 use super::MtpBrowser;
 use crate::format::format_size;
@@ -158,7 +159,7 @@ impl MtpBrowser {
                     .text_xs()
                     .font_medium()
                     .text_color(cx.theme().muted_foreground)
-                    .child("Devices"),
+                    .child(t!("sidebar.devices").to_string()),
             )
             .children(device_rows);
 

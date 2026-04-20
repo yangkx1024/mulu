@@ -10,7 +10,7 @@ use gpui_component::*;
 
 use crate::model::Session;
 use crate::mtp::{DeviceSummary, ObjectHandle};
-use actions::NO_DEVICES_FOUND;
+use actions::no_devices_found;
 use table::FolderDelegate;
 
 pub struct MtpBrowser {
@@ -34,7 +34,7 @@ impl MtpBrowser {
             table,
             devices: Vec::new(),
             session: None,
-            status: Some(NO_DEVICES_FOUND.into()),
+            status: Some(no_devices_found()),
             selected_row: None,
             _subscriptions: subscriptions,
         };

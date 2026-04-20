@@ -1,10 +1,20 @@
 use gpui::*;
 use gpui_component::breadcrumb::{Breadcrumb, BreadcrumbItem};
 use gpui_component::button::*;
+use gpui_component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_component::sidebar::SidebarToggleButton;
 use gpui_component::*;
+use rust_i18n::t;
 
 use super::MtpBrowser;
+use crate::set_app_locale;
+
+const LOCALE_ITEMS: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("zh-CN", "简体中文"),
+    ("zh-HK", "繁體中文"),
+    ("ja", "日本語"),
+];
 
 fn tool_btn(id: &'static str, icon: IconName) -> Button {
     Button::new(id)
@@ -27,10 +37,11 @@ impl MtpBrowser {
             IconName::Moon
         };
         let theme_tooltip = if is_dark {
-            "Switch to light theme"
+            t!("toolbar.switch_to_light").to_string()
         } else {
-            "Switch to dark theme"
+            t!("toolbar.switch_to_dark").to_string()
         };
+        let language_tooltip = t!("toolbar.switch_language").to_string();
 
         let mut crumb_items: Vec<BreadcrumbItem> = Vec::new();
         if let Some(session) = &self.session {
@@ -70,7 +81,7 @@ impl MtpBrowser {
                     .child(
                         tool_btn("back", IconName::ChevronLeft)
                             .disabled(!can_go_back)
-                            .tooltip("Back")
+                            .tooltip(t!("toolbar.back").to_string())
                             .on_click(cx.listener(|this, _, _, cx| this.navigate_back(cx))),
                     )
                     .child(Breadcrumb::new().children(crumb_items)),
@@ -82,28 +93,49 @@ impl MtpBrowser {
                     .child(
                         tool_btn("import", IconName::ArrowUp)
                             .disabled(!has_session)
-                            .tooltip("Import from computer")
+                            .tooltip(t!("toolbar.import").to_string())
                             .on_click(cx.listener(Self::on_import)),
                     )
                     .child(
                         tool_btn("export", IconName::ArrowDown)
                             .disabled(!has_selection)
-                            .tooltip("Export to computer")
+                            .tooltip(t!("toolbar.export").to_string())
                             .on_click(cx.listener(Self::on_export)),
                     )
                     .child(
                         tool_btn("new-folder", IconName::Plus)
                             .disabled(!has_session)
-                            .tooltip("New folder")
+                            .tooltip(t!("toolbar.new_folder").to_string())
                             .on_click(cx.listener(Self::on_new_folder)),
                     )
                     .child(
                         tool_btn("trash", IconName::Delete)
                             .disabled(!has_selection)
-                            .tooltip("Delete")
+                            .tooltip(t!("toolbar.delete").to_string())
                             .on_click(cx.listener(Self::on_trash)),
                     )
                     .child(div().w(px(8.)))
+                    .child({
+                        let view = cx.entity();
+                        tool_btn("language-toggle", IconName::Globe)
+                            .tooltip(language_tooltip)
+                            .dropdown_menu(move |mut menu, window, _| {
+                                for (code, label) in LOCALE_ITEMS {
+                                    menu = menu.item(PopupMenuItem::new(*label).on_click(
+                                        window.listener_for(&view, move |this, _, _, cx| {
+                                            if &*rust_i18n::locale() == *code {
+                                                return;
+                                            }
+                                            set_app_locale(code);
+                                            this.relocalize_table(cx);
+                                            this.on_locale_changed(cx);
+                                            cx.refresh_windows();
+                                        }),
+                                    ));
+                                }
+                                menu
+                            })
+                    })
                     .child(
                         tool_btn("theme-toggle", theme_icon)
                             .tooltip(theme_tooltip)

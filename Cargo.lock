@@ -3687,6 +3687,8 @@ dependencies = [
  "gpui_platform",
  "mtp-rs",
  "nusb",
+ "rust-i18n",
+ "sys-locale",
  "tokio",
 ]
 

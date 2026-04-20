@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use bytes::Bytes;
 use mtp_rs::{Error as MtpError, MtpDevice, NewObjectInfo, ObjectHandle, StorageId};
+use rust_i18n::t;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
 use crate::format::{format_datetime, format_kind, format_size};
@@ -22,13 +23,9 @@ pub enum MtpOpError {
 impl MtpOpError {
     pub fn user_message(&self) -> String {
         match self {
-            MtpOpError::Busy => {
-                "Device is in use by another application (e.g. ptpcamerad on macOS). \
-                 Disconnect it and try again."
-                    .to_owned()
-            }
-            MtpOpError::NoStorages => "No storages on device".to_owned(),
-            MtpOpError::Io(e) => format!("I/O error: {e}"),
+            MtpOpError::Busy => t!("error.device_busy").to_string(),
+            MtpOpError::NoStorages => t!("error.no_storages").to_string(),
+            MtpOpError::Io(e) => t!("error.io", message = e.to_string()).to_string(),
             MtpOpError::Mtp(e) => format!("{e}"),
         }
     }

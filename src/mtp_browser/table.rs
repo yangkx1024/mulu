@@ -2,11 +2,13 @@ use gpui::*;
 use gpui_component::menu::PopupMenu;
 use gpui_component::table::{Column, ColumnSort, DataTable, TableDelegate, TableState};
 use gpui_component::*;
+use rust_i18n::t;
 
 use super::MtpBrowser;
 use super::actions::{
     ContextDelete, ContextExport, ContextImportCurrent, ContextImportHere, ContextNewFolder,
 };
+use crate::format::format_kind;
 use crate::mtp::FileEntry;
 
 const COL_NAME: &str = "name";
@@ -24,14 +26,24 @@ impl FolderDelegate {
     pub fn new() -> Self {
         Self {
             rows: Vec::new(),
-            columns: vec![
-                Column::new(COL_NAME, "Name").width(px(280.)).ascending(),
-                Column::new(COL_MODIFIED, "Date Modified")
-                    .width(px(200.))
-                    .sortable(),
-                Column::new(COL_SIZE, "Size").width(px(80.)).sortable(),
-                Column::new(COL_KIND, "Kind").width(px(120.)).sortable(),
-            ],
+            columns: localized_columns(),
+        }
+    }
+
+    pub fn relocalize(&mut self) {
+        let current_sorts: Vec<_> = self
+            .columns
+            .iter()
+            .map(|c| (c.key.clone(), c.sort))
+            .collect();
+        self.columns = localized_columns();
+        for (key, sort) in current_sorts {
+            if let Some(col) = self.columns.iter_mut().find(|c| c.key == key) {
+                col.sort = sort;
+            }
+        }
+        for row in &mut self.rows {
+            row.kind = format_kind(&row.name, row.is_folder);
         }
     }
 
@@ -57,6 +69,23 @@ impl FolderDelegate {
     }
 }
 
+fn localized_columns() -> Vec<Column> {
+    vec![
+        Column::new(COL_NAME, t!("table.col.name").to_string())
+            .width(px(280.))
+            .ascending(),
+        Column::new(COL_MODIFIED, t!("table.col.modified").to_string())
+            .width(px(200.))
+            .sortable(),
+        Column::new(COL_SIZE, t!("table.col.size").to_string())
+            .width(px(80.))
+            .sortable(),
+        Column::new(COL_KIND, t!("table.col.kind").to_string())
+            .width(px(120.))
+            .sortable(),
+    ]
+}
+
 impl TableDelegate for FolderDelegate {
     fn columns_count(&self, _cx: &App) -> usize {
         self.columns.len()
@@ -80,7 +109,8 @@ impl TableDelegate for FolderDelegate {
         let (menu, has_real_row) = match self.rows.get(row_ix) {
             Some(row) => {
                 let m = if row.is_folder {
-                    let label = format!("Import into \"{}\"", row.name);
+                    let label =
+                        t!("table.menu.import_into", name = row.name.as_ref()).to_string();
                     menu.menu_with_icon(
                         label,
                         Icon::new(IconName::ArrowUp),
@@ -88,7 +118,7 @@ impl TableDelegate for FolderDelegate {
                     )
                 } else {
                     menu.menu_with_icon(
-                        "Export…",
+                        t!("table.menu.export").to_string(),
                         Icon::new(IconName::ArrowDown),
                         Box::new(ContextExport { row_ix }),
                     )
@@ -99,19 +129,19 @@ impl TableDelegate for FolderDelegate {
         };
         let menu = menu
             .menu_with_icon(
-                "Import into current folder",
+                t!("table.menu.import_current").to_string(),
                 Icon::new(IconName::ArrowUp),
                 Box::new(ContextImportCurrent),
             )
             .separator()
             .menu_with_icon(
-                "New Folder",
+                t!("table.menu.new_folder").to_string(),
                 Icon::new(IconName::Plus),
                 Box::new(ContextNewFolder),
             );
         if has_real_row {
             menu.separator().menu_with_icon(
-                "Delete",
+                t!("table.menu.delete").to_string(),
                 Icon::new(IconName::Delete),
                 Box::new(ContextDelete { row_ix }),
             )
@@ -176,5 +206,12 @@ impl MtpBrowser {
             .overflow_hidden()
             .child(DataTable::new(&self.table).stripe(true).bordered(false))
             .into_any_element()
+    }
+
+    pub(super) fn relocalize_table(&mut self, cx: &mut Context<Self>) {
+        self.table.update(cx, |state, cx| {
+            state.delegate_mut().relocalize();
+            cx.notify();
+        });
     }
 }

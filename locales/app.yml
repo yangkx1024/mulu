@@ -1,0 +1,263 @@
+_version: 2
+
+# Sidebar
+sidebar.devices:
+  en: Devices
+  zh-CN: 设备
+  zh-HK: 裝置
+  ja: デバイス
+
+# Toolbar tooltips
+toolbar.back:
+  en: Back
+  zh-CN: 后退
+  zh-HK: 返回
+  ja: 戻る
+toolbar.import:
+  en: Import from computer
+  zh-CN: 从电脑导入
+  zh-HK: 從電腦匯入
+  ja: パソコンから取り込む
+toolbar.export:
+  en: Export to computer
+  zh-CN: 导出到电脑
+  zh-HK: 匯出至電腦
+  ja: パソコンへ書き出す
+toolbar.new_folder:
+  en: New folder
+  zh-CN: 新建文件夹
+  zh-HK: 新增資料夾
+  ja: 新規フォルダ
+toolbar.delete:
+  en: Delete
+  zh-CN: 删除
+  zh-HK: 刪除
+  ja: 削除
+toolbar.switch_to_light:
+  en: Switch to light theme
+  zh-CN: 切换到浅色主题
+  zh-HK: 切換至淺色主題
+  ja: ライトテーマに切り替え
+toolbar.switch_to_dark:
+  en: Switch to dark theme
+  zh-CN: 切换到深色主题
+  zh-HK: 切換至深色主題
+  ja: ダークテーマに切り替え
+toolbar.switch_language:
+  en: Switch language
+  zh-CN: 切换语言
+  zh-HK: 切換語言
+  ja: 言語を切り替え
+
+# Table column headers
+table.col.name:
+  en: Name
+  zh-CN: 名称
+  zh-HK: 名稱
+  ja: 名前
+table.col.modified:
+  en: Date Modified
+  zh-CN: 修改日期
+  zh-HK: 修改日期
+  ja: 更新日時
+table.col.size:
+  en: Size
+  zh-CN: 大小
+  zh-HK: 大小
+  ja: サイズ
+table.col.kind:
+  en: Kind
+  zh-CN: 类型
+  zh-HK: 類型
+  ja: 種類
+
+# Table context menu
+table.menu.import_into:
+  en: 'Import into "%{name}"'
+  zh-CN: 导入到 “%{name}”
+  zh-HK: 匯入至「%{name}」
+  ja: 「%{name}」に取り込む
+table.menu.export:
+  en: Export…
+  zh-CN: 导出……
+  zh-HK: 匯出……
+  ja: 書き出す…
+table.menu.import_current:
+  en: Import into current folder
+  zh-CN: 导入到当前文件夹
+  zh-HK: 匯入至目前資料夾
+  ja: 現在のフォルダに取り込む
+table.menu.new_folder:
+  en: New Folder
+  zh-CN: 新建文件夹
+  zh-HK: 新增資料夾
+  ja: 新規フォルダ
+table.menu.delete:
+  en: Delete
+  zh-CN: 删除
+  zh-HK: 刪除
+  ja: 削除
+
+# File-picker prompts
+prompt.import:
+  en: Import
+  zh-CN: 导入
+  zh-HK: 匯入
+  ja: 取り込む
+prompt.export_to:
+  en: Export to…
+  zh-CN: 导出到……
+  zh-HK: 匯出至……
+  ja: 書き出し先…
+
+# Status messages
+status.no_devices:
+  en: No MTP devices found
+  zh-CN: 未发现 MTP 设备
+  zh-HK: 找不到 MTP 裝置
+  ja: MTP デバイスが見つかりません
+status.disconnected:
+  en: Device disconnected
+  zh-CN: 设备已断开
+  zh-HK: 裝置已中斷連線
+  ja: デバイスが切断されました
+status.connecting:
+  en: Connecting…
+  zh-CN: 正在连接……
+  zh-HK: 正在連線……
+  ja: 接続中…
+status.loading:
+  en: Loading…
+  zh-CN: 正在加载……
+  zh-HK: 正在載入……
+  ja: 読み込み中…
+status.items:
+  en: '%{count} items'
+  zh-CN: '%{count} 项'
+  zh-HK: '%{count} 項'
+  ja: '%{count} 項目'
+status.uploading:
+  en: 'Uploading %{count} file(s)…'
+  zh-CN: 正在上传 %{count} 个文件……
+  zh-HK: 正在上傳 %{count} 個檔案……
+  ja: '%{count} 件のファイルをアップロード中…'
+status.exporting:
+  en: 'Exporting %{name}…'
+  zh-CN: 正在导出 %{name}……
+  zh-HK: 正在匯出 %{name}……
+  ja: '%{name} を書き出し中…'
+status.exported:
+  en: Exported
+  zh-CN: 导出完成
+  zh-HK: 匯出完成
+  ja: 書き出しました
+status.deleting:
+  en: Deleting…
+  zh-CN: 正在删除……
+  zh-HK: 正在刪除……
+  ja: 削除中…
+
+# Errors surfaced as status text
+error.list_devices_failed:
+  en: 'Failed to list devices: %{message}'
+  zh-CN: 列出设备失败:%{message}
+  zh-HK: '列出裝置失敗:%{message}'
+  ja: 'デバイスの一覧取得に失敗しました: %{message}'
+error.error_prefix:
+  en: 'Error: %{message}'
+  zh-CN: 错误:%{message}
+  zh-HK: '錯誤:%{message}'
+  ja: 'エラー: %{message}'
+error.upload_failed:
+  en: 'Upload failed: %{message}'
+  zh-CN: 上传失败:%{message}
+  zh-HK: '上傳失敗:%{message}'
+  ja: 'アップロードに失敗しました: %{message}'
+error.export_failed:
+  en: 'Export failed: %{message}'
+  zh-CN: 导出失败:%{message}
+  zh-HK: '匯出失敗:%{message}'
+  ja: '書き出しに失敗しました: %{message}'
+error.delete_failed:
+  en: 'Delete failed: %{message}'
+  zh-CN: 删除失败:%{message}
+  zh-HK: '刪除失敗:%{message}'
+  ja: '削除に失敗しました: %{message}'
+error.create_failed:
+  en: 'Create failed: %{message}'
+  zh-CN: 创建失败:%{message}
+  zh-HK: '建立失敗:%{message}'
+  ja: '作成に失敗しました: %{message}'
+
+# MtpOpError user-facing text
+error.device_busy:
+  en: Device is in use by another application (e.g. ptpcamerad on macOS). Disconnect it and try again.
+  zh-CN: 设备被其他应用占用(例如 macOS 上的 ptpcamerad)。请断开后重试。
+  zh-HK: 裝置正被其他應用程式使用(例如 macOS 上的 ptpcamerad)。請中斷連線後再試。
+  ja: デバイスは他のアプリケーション(macOS の ptpcamerad など)が使用中です。切断してからもう一度お試しください。
+error.no_storages:
+  en: No storages on device
+  zh-CN: 设备上没有可用存储
+  zh-HK: 裝置上沒有可用的儲存空間
+  ja: デバイスにストレージがありません
+error.io:
+  en: 'I/O error: %{message}'
+  zh-CN: I/O 错误:%{message}
+  zh-HK: 'I/O 錯誤:%{message}'
+  ja: 'I/O エラー: %{message}'
+
+# Delete dialog
+dialog.delete.title:
+  en: Delete
+  zh-CN: 删除
+  zh-HK: 刪除
+  ja: 削除
+dialog.delete.description:
+  en: 'Delete "%{name}"? This cannot be undone.'
+  zh-CN: 删除 “%{name}”?此操作不可撤销。
+  zh-HK: 要刪除「%{name}」嗎?此動作無法復原。
+  ja: 「%{name}」を削除しますか?この操作は取り消せません。
+dialog.delete.ok:
+  en: Delete
+  zh-CN: 删除
+  zh-HK: 刪除
+  ja: 削除
+dialog.cancel:
+  en: Cancel
+  zh-CN: 取消
+  zh-HK: 取消
+  ja: キャンセル
+
+# New Folder dialog
+dialog.new_folder.title:
+  en: New Folder
+  zh-CN: 新建文件夹
+  zh-HK: 新增資料夾
+  ja: 新規フォルダ
+dialog.new_folder.placeholder:
+  en: Folder name
+  zh-CN: 文件夹名称
+  zh-HK: 資料夾名稱
+  ja: フォルダ名
+dialog.new_folder.create:
+  en: Create
+  zh-CN: 创建
+  zh-HK: 建立
+  ja: 作成
+
+# File kind labels
+kind.folder:
+  en: Folder
+  zh-CN: 文件夹
+  zh-HK: 資料夾
+  ja: フォルダ
+kind.file:
+  en: File
+  zh-CN: 文件
+  zh-HK: 檔案
+  ja: ファイル
+kind.file_with_ext:
+  en: '%{ext} File'
+  zh-CN: '%{ext} 文件'
+  zh-HK: '%{ext} 檔案'
+  ja: '%{ext} ファイル'

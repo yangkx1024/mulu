@@ -2,6 +2,7 @@ use std::path::Path;
 
 use gpui::SharedString;
 use mtp_rs::DateTime;
+use rust_i18n::t;
 
 pub fn format_size(bytes: u64) -> SharedString {
     if bytes == 0 {
@@ -34,10 +35,12 @@ pub fn format_datetime(dt: Option<DateTime>) -> SharedString {
 
 pub fn format_kind(filename: &str, is_folder: bool) -> SharedString {
     if is_folder {
-        return "Folder".into();
+        return t!("kind.folder").to_string().into();
     }
     match Path::new(filename).extension().and_then(|e| e.to_str()) {
-        Some(ext) => format!("{} File", ext.to_uppercase()).into(),
-        None => "File".into(),
+        Some(ext) => t!("kind.file_with_ext", ext = ext.to_uppercase())
+            .to_string()
+            .into(),
+        None => t!("kind.file").to_string().into(),
     }
 }
