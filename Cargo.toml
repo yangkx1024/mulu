@@ -27,6 +27,6 @@ minimum-system-version = "10.15"
 
 # `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
 # `mtp-rs` v0.11.0 -> `nusb` v0.2 use `core-foundation = "0.10.1"`.
-# patch to 0.10.0 locally to accept the same version until upstream dependencies converge.
+# this repo patch it to 0.10.0 to accept the same version until upstream dependencies converge.
 [patch.crates-io]
-nusb = { path = "../nusb" }
+nusb = { git = "https://github.com/yangkx1024/nusb" }
