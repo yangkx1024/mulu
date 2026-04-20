@@ -60,7 +60,9 @@ impl MtpBrowser {
                         .child(label),
                 )
                 .on_click(cx.listener(move |this, _, _, cx| {
-                    this.open_device(location_id, cx);
+                    if !is_active {
+                        this.open_device(location_id, cx);
+                    }
                 }))
                 .into_any_element();
 
