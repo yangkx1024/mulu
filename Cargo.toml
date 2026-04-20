@@ -21,9 +21,22 @@ product-name = "Mulu"
 identifier = "net.yangkx.mulu"
 before-packaging-command = "cargo build --release"
 icons = ["icon.png"]
+formats = ["deb", "pacman", "dmg"]
 
 [package.metadata.packager.macos]
 minimum-system-version = "10.15"
+
+[package.metadata.packager.deb]
+depends = [
+  "libxkbcommon0",
+  "libfontconfig1",
+]
+
+[package.metadata.packager.pacman]
+depends = [
+  "libxkbcommon",
+  "fontconfig",
+]
 
 # `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
 # `mtp-rs` v0.11.0 -> `nusb` v0.2 use `core-foundation = "0.10.1"`.
