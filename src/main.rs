@@ -13,6 +13,7 @@ impl Global for ThemeAutoFollow {}
 
 fn main() {
     gpui_platform::application()
+        .with_quit_mode(QuitMode::LastWindowClosed)
         .with_assets(Assets)
         .run(move |cx| {
             gpui_component::init(cx);
