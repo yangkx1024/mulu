@@ -30,3 +30,10 @@ minimum-system-version = "10.15"
 # this repo patch it to 0.10.0 to accept the same version until upstream dependencies converge.
 [patch.crates-io]
 nusb = { git = "https://github.com/yangkx1024/nusb" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
