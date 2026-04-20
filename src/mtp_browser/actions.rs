@@ -65,7 +65,10 @@ impl MtpBrowser {
         self.devices = new_devices;
 
         let active_gone = self.session.as_ref().is_some_and(|s| {
-            !self.devices.iter().any(|d| d.location_id == s.device_location)
+            !self
+                .devices
+                .iter()
+                .any(|d| d.location_id == s.device_location)
         });
         if active_gone {
             self.close_session(cx);
@@ -177,9 +180,8 @@ impl MtpBrowser {
                                 let delegate = state.delegate_mut();
                                 delegate.rows = entries;
                                 delegate.sort_default();
-                                select.and_then(|h| {
-                                    delegate.rows.iter().position(|r| r.handle == h)
-                                })
+                                select
+                                    .and_then(|h| delegate.rows.iter().position(|r| r.handle == h))
                             };
                             if let Some(idx) = select_idx {
                                 state.set_selected_row(idx, cx);
@@ -187,8 +189,7 @@ impl MtpBrowser {
                                 cx.notify();
                             }
                         });
-                        this.status =
-                            Some(t!("status.items", count = count).to_string().into());
+                        this.status = Some(t!("status.items", count = count).to_string().into());
                     }
                     Err(e) => {
                         this.status = Some(
@@ -236,8 +237,7 @@ impl MtpBrowser {
             };
             let count = paths.len();
             let _ = this.update(cx, |this, cx| {
-                this.status =
-                    Some(t!("status.uploading", count = count).to_string().into());
+                this.status = Some(t!("status.uploading", count = count).to_string().into());
                 cx.notify();
                 spawn_mtp(
                     cx,
@@ -320,9 +320,7 @@ impl MtpBrowser {
             let client = client.clone();
             alert
                 .title(t!("dialog.delete.title").to_string())
-                .description(
-                    t!("dialog.delete.description", name = name.as_ref()).to_string(),
-                )
+                .description(t!("dialog.delete.description", name = name.as_ref()).to_string())
                 .button_props(
                     DialogButtonProps::default()
                         .ok_text(t!("dialog.delete.ok").to_string())
@@ -418,58 +416,63 @@ impl MtpBrowser {
             InputState::new(window, cx).placeholder(t!("dialog.new_folder.placeholder").to_string())
         });
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let input_for_create = input.clone();
-            let view = view.clone();
-            let client = client.clone();
-            dialog
-                .title(t!("dialog.new_folder.title").to_string())
-                .child(v_flex().px_4().py_3().child(Input::new(&input)))
-                .footer(
-                    DialogFooter::new()
-                        .child(
-                            Button::new("cancel")
-                                .label(t!("dialog.cancel").to_string())
-                                .outline()
-                                .on_click(|_, window, cx| window.close_dialog(cx)),
-                        )
-                        .child({
-                            let view = view.clone();
-                            let client = client.clone();
-                            Button::new("create")
-                                .label(t!("dialog.new_folder.create").to_string())
-                                .primary()
-                                .on_click(move |_, window, cx| {
-                                    let name = input_for_create.read(cx).value().to_string();
-                                    if name.trim().is_empty() {
-                                        return;
-                                    }
-                                    let client = client.clone();
-                                    view.update(cx, |_this, cx| {
-                                        spawn_mtp(
-                                            cx,
-                                            async move {
-                                                client.create_folder(parent, &name).await
-                                            },
-                                            |this, result, cx| match result {
-                                                Ok(()) => this.load_current_folder(None, cx),
-                                                Err(e) => this.set_status(
-                                                    t!(
-                                                        "error.create_failed",
-                                                        message = e.user_message()
-                                                    )
-                                                    .to_string(),
-                                                    cx,
-                                                ),
-                                            },
-                                        );
+        window.open_dialog(cx, {
+            let input = input.clone();
+            move |dialog, _, _| {
+                let input_for_create = input.clone();
+                let view = view.clone();
+                let client = client.clone();
+                dialog
+                    .title(t!("dialog.new_folder.title").to_string())
+                    .child(v_flex().py_3().child(Input::new(&input)))
+                    .footer(
+                        DialogFooter::new()
+                            .child(
+                                Button::new("cancel")
+                                    .label(t!("dialog.cancel").to_string())
+                                    .outline()
+                                    .on_click(|_, window, cx| window.close_dialog(cx)),
+                            )
+                            .child({
+                                let view = view.clone();
+                                let client = client.clone();
+                                Button::new("create")
+                                    .label(t!("dialog.new_folder.create").to_string())
+                                    .primary()
+                                    .on_click(move |_, window, cx| {
+                                        let name = input_for_create.read(cx).value().to_string();
+                                        if name.trim().is_empty() {
+                                            return;
+                                        }
+                                        let client = client.clone();
+                                        view.update(cx, |_this, cx| {
+                                            spawn_mtp(
+                                                cx,
+                                                async move {
+                                                    client.create_folder(parent, &name).await
+                                                },
+                                                |this, result, cx| match result {
+                                                    Ok(()) => this.load_current_folder(None, cx),
+                                                    Err(e) => this.set_status(
+                                                        t!(
+                                                            "error.create_failed",
+                                                            message = e.user_message()
+                                                        )
+                                                        .to_string(),
+                                                        cx,
+                                                    ),
+                                                },
+                                            );
+                                        })
+                                        .ok();
+                                        window.close_dialog(cx);
                                     })
-                                    .ok();
-                                    window.close_dialog(cx);
-                                })
-                        }),
-                )
+                            }),
+                    )
+            }
         });
+
+        input.update(cx, |state, cx| state.focus(window, cx));
     }
 
     pub(super) fn on_context_new_folder(

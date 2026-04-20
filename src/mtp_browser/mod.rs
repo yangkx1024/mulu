@@ -49,10 +49,7 @@ impl MtpBrowser {
     }
 
     fn navigate_to(&mut self, idx: usize, cx: &mut Context<Self>) {
-        let select = self
-            .session
-            .as_mut()
-            .and_then(|s| s.truncate_to(idx));
+        let select = self.session.as_mut().and_then(|s| s.truncate_to(idx));
         if select.is_some() {
             self.load_current_folder(select, cx);
         }

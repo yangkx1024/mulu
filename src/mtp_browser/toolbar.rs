@@ -1,8 +1,9 @@
+use gpui::prelude::FluentBuilder;
 use gpui::*;
-use gpui_component::breadcrumb::{Breadcrumb, BreadcrumbItem};
 use gpui_component::button::*;
 use gpui_component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_component::sidebar::SidebarToggleButton;
+use gpui_component::tooltip::Tooltip;
 use gpui_component::*;
 use rust_i18n::t;
 
@@ -43,18 +44,60 @@ impl MtpBrowser {
         };
         let language_tooltip = t!("toolbar.switch_language").to_string();
 
-        let mut crumb_items: Vec<BreadcrumbItem> = Vec::new();
+        let mut crumb_elements: Vec<AnyElement> = Vec::new();
         if let Some(session) = &self.session {
-            let last = session.path.len().saturating_sub(1);
-            for (i, crumb) in session.path.iter().enumerate() {
+            let total = session.path.len();
+            let last_original = total.saturating_sub(1);
+            let separator = || {
+                Icon::new(IconName::ChevronRight)
+                    .text_color(cx.theme().muted_foreground)
+                    .size_3p5()
+                    .into_any_element()
+            };
+
+            if total > 3 {
+                crumb_elements.push(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child("...")
+                        .into_any_element(),
+                );
+                crumb_elements.push(separator());
+            }
+
+            for (orig_i, crumb) in session
+                .path
+                .iter()
+                .enumerate()
+                .skip(total.saturating_sub(3))
+            {
+                let is_last = orig_i == last_original;
                 let crumb_name = crumb.name.clone();
-                let item = if i < last {
-                    BreadcrumbItem::new(crumb_name)
-                        .on_click(cx.listener(move |this, _, _, cx| this.navigate_to(i, cx)))
-                } else {
-                    BreadcrumbItem::new(crumb_name)
-                };
-                crumb_items.push(item);
+
+                let item = div()
+                    .id(ElementId::Integer(orig_i as u64))
+                    .text_sm()
+                    .max_w(px(160.))
+                    .truncate()
+                    .text_color(if is_last {
+                        cx.theme().foreground
+                    } else {
+                        cx.theme().muted_foreground
+                    })
+                    .child(crumb_name.clone())
+                    .tooltip(move |window, cx| Tooltip::new(crumb_name.clone()).build(window, cx))
+                    .when(!is_last, |el| {
+                        el.cursor_pointer().on_click(
+                            cx.listener(move |this, _, _, cx| this.navigate_to(orig_i, cx)),
+                        )
+                    });
+
+                crumb_elements.push(item.into_any_element());
+
+                if !is_last {
+                    crumb_elements.push(separator());
+                }
             }
         }
 
@@ -84,7 +127,13 @@ impl MtpBrowser {
                             .tooltip(t!("toolbar.back").to_string())
                             .on_click(cx.listener(|this, _, _, cx| this.navigate_back(cx))),
                     )
-                    .child(Breadcrumb::new().children(crumb_items)),
+                    .child(
+                        h_flex()
+                            .gap_1p5()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .children(crumb_elements),
+                    ),
             )
             .child(
                 h_flex()

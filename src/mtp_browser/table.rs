@@ -109,8 +109,7 @@ impl TableDelegate for FolderDelegate {
         let (menu, has_real_row) = match self.rows.get(row_ix) {
             Some(row) => {
                 let m = if row.is_folder {
-                    let label =
-                        t!("table.menu.import_into", name = row.name.as_ref()).to_string();
+                    let label = t!("table.menu.import_into", name = row.name.as_ref()).to_string();
                     menu.menu_with_icon(
                         label,
                         Icon::new(IconName::ArrowUp),
