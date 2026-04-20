@@ -11,6 +11,7 @@ impl MtpBrowser {
             .py_2()
             .border_t_1()
             .border_color(cx.theme().border)
+            .bg(cx.theme().background)
             .text_xs()
             .text_color(cx.theme().muted_foreground)
             .child(status_text)

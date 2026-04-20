@@ -20,6 +20,12 @@ impl MtpBrowser {
         let can_go_back = self.session.as_ref().map_or(false, |s| s.can_go_back());
         let has_session = self.session.is_some();
         let has_selection = self.selected_row.is_some();
+        let is_dark = cx.theme().mode.is_dark();
+        let theme_icon = if is_dark {
+            IconName::Sun
+        } else {
+            IconName::Moon
+        };
 
         let mut crumb_items: Vec<BreadcrumbItem> = Vec::new();
         if let Some(session) = &self.session {
@@ -41,6 +47,7 @@ impl MtpBrowser {
             .py_3()
             .border_b_1()
             .border_color(cx.theme().border)
+            .bg(cx.theme().background)
             .justify_between()
             .items_center()
             .child(
@@ -87,7 +94,21 @@ impl MtpBrowser {
                             .on_click(cx.listener(Self::on_trash)),
                     )
                     .child(div().w(px(8.)))
-                    .child(tool_btn("info", IconName::Info)),
+                    .child(
+                        tool_btn("theme-toggle", theme_icon).on_click(cx.listener(
+                            move |_, _, window, cx| {
+                                let next = if is_dark {
+                                    ThemeMode::Light
+                                } else {
+                                    ThemeMode::Dark
+                                };
+                                if cx.global::<crate::ThemeAutoFollow>().0 {
+                                    cx.set_global(crate::ThemeAutoFollow(false));
+                                }
+                                Theme::change(next, Some(window), cx);
+                            },
+                        )),
+                    ),
             )
             .into_any_element()
     }

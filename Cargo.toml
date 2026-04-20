@@ -13,6 +13,15 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "fs
 bytes = "1"
 futures = "0.3"
 
+[package.metadata.packager]
+product-name = "ympt"
+identifier = "net.yangkx.ympt"
+before-packaging-command = "cargo build --release"
+icons = ["icon.png"]
+
+[package.metadata.packager.macos]
+minimum-system-version = "10.15"
+
 # `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
 # `mtp-rs` v0.11.0 -> `nusb` v0.2 use `core-foundation = "0.10.1"`.
 # patch to 0.10.0 locally to accept the same version until upstream dependencies converge.

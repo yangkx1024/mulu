@@ -115,16 +115,19 @@ impl Render for MtpBrowser {
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
 
-        div()
+        v_flex()
             .size_full()
             .on_action(cx.listener(Self::on_context_import_here))
             .on_action(cx.listener(Self::on_context_import_current))
             .on_action(cx.listener(Self::on_context_export))
             .on_action(cx.listener(Self::on_context_delete))
             .on_action(cx.listener(Self::on_context_new_folder))
+            .child(TitleBar::new())
             .child(
                 h_flex()
-                    .size_full()
+                    .w_full()
+                    .flex_1()
+                    .overflow_hidden()
                     .child(self.render_sidebar(window, cx))
                     .child(
                         v_flex()
