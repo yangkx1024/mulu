@@ -111,6 +111,11 @@ impl TableDelegate for FolderDelegate {
                 let m = if row.is_folder {
                     let label = t!("table.menu.import_into", name = row.name.as_ref()).to_string();
                     menu.menu_with_icon(
+                        t!("table.menu.export").to_string(),
+                        Icon::new(IconName::ArrowDown),
+                        Box::new(ContextExport { row_ix }),
+                    )
+                    .menu_with_icon(
                         label,
                         Icon::new(IconName::ArrowUp),
                         Box::new(ContextImportHere { row_ix }),

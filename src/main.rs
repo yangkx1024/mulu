@@ -21,7 +21,7 @@ fn detect_system_locale() -> &'static str {
     let raw = sys_locale::get_locale().unwrap_or_default().to_lowercase();
     if raw.starts_with("zh") {
         let traditional = raw
-            .split(|c| c == '-' || c == '_')
+            .split(['-', '_'])
             .any(|s| matches!(s, "hant" | "tw" | "hk" | "mo"));
         if traditional { "zh-HK" } else { "zh-CN" }
     } else if raw.starts_with("ja") {

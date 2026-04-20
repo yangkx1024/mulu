@@ -104,6 +104,11 @@ prompt.import:
   zh-CN: 导入
   zh-HK: 匯入
   ja: 取り込む
+prompt.import_files_or_folders:
+  en: Import Files or Folders
+  zh-CN: 导入文件或文件夹
+  zh-HK: 匯入檔案或資料夾
+  ja: ファイルまたはフォルダを取り込む
 prompt.export_to:
   en: Export to…
   zh-CN: 导出到……
@@ -151,6 +156,16 @@ status.exported:
   zh-CN: 导出完成
   zh-HK: 匯出完成
   ja: 書き出しました
+status.exporting_folder:
+  en: 'Exporting folder %{name}…'
+  zh-CN: 正在导出文件夹 %{name}……
+  zh-HK: 正在匯出資料夾 %{name}……
+  ja: 'フォルダ %{name} を書き出し中…'
+status.exported_folder:
+  en: Folder exported
+  zh-CN: 文件夹导出完成
+  zh-HK: 資料夾匯出完成
+  ja: フォルダを書き出しました
 status.deleting:
   en: Deleting…
   zh-CN: 正在删除……
@@ -178,6 +193,11 @@ error.export_failed:
   zh-CN: 导出失败:%{message}
   zh-HK: '匯出失敗:%{message}'
   ja: '書き出しに失敗しました: %{message}'
+error.export_folder_failed:
+  en: 'Folder export failed: %{message}'
+  zh-CN: 文件夹导出失败:%{message}
+  zh-HK: '資料夾匯出失敗:%{message}'
+  ja: 'フォルダの書き出しに失敗しました: %{message}'
 error.delete_failed:
   en: 'Delete failed: %{message}'
   zh-CN: 删除失败:%{message}

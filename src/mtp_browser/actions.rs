@@ -220,15 +220,15 @@ impl MtpBrowser {
         Some((row.handle, row.name.clone(), row.is_folder))
     }
 
-    fn import_into(&mut self, parent: Option<ObjectHandle>, cx: &mut Context<Self>) {
+    pub(super) fn import_into(&mut self, parent: Option<ObjectHandle>, cx: &mut Context<Self>) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
 
         let rx = cx.prompt_for_paths(PathPromptOptions {
             files: true,
-            directories: false,
+            directories: true,
             multiple: true,
-            prompt: Some(t!("prompt.import").to_string().into()),
+            prompt: Some(t!("prompt.import_files_or_folders").to_string().into()),
         });
 
         cx.spawn(async move |this, cx| {
@@ -243,7 +243,7 @@ impl MtpBrowser {
                     cx,
                     async move {
                         for path in &paths {
-                            client.upload_file(parent, path).await?;
+                            client.upload_path(parent, path).await?;
                         }
                         Ok::<(), MtpOpError>(())
                     },
@@ -260,7 +260,13 @@ impl MtpBrowser {
         .detach();
     }
 
-    fn export_entry(&mut self, handle: ObjectHandle, name: SharedString, cx: &mut Context<Self>) {
+    fn export_selected(
+        &mut self,
+        handle: ObjectHandle,
+        name: SharedString,
+        is_folder: bool,
+        cx: &mut Context<Self>,
+    ) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
 
@@ -280,21 +286,39 @@ impl MtpBrowser {
             };
             let dest = dir.join(name.as_ref());
             let _ = this.update(cx, |this, cx| {
-                this.status = Some(
-                    t!("status.exporting", name = name.as_ref())
-                        .to_string()
-                        .into(),
-                );
+                let in_progress_key = if is_folder {
+                    "status.exporting_folder"
+                } else {
+                    "status.exporting"
+                };
+                this.status = Some(t!(in_progress_key, name = name.as_ref()).to_string().into());
                 cx.notify();
                 spawn_mtp(
                     cx,
-                    async move { client.download_to(handle, &dest).await },
-                    |this, result, cx| match result {
-                        Ok(()) => this.set_status(t!("status.exported").to_string(), cx),
-                        Err(e) => this.set_status(
-                            t!("error.export_failed", message = e.user_message()).to_string(),
-                            cx,
-                        ),
+                    async move {
+                        if is_folder {
+                            client.download_folder_to(handle, &dest).await
+                        } else {
+                            client.download_to(handle, &dest).await
+                        }
+                    },
+                    move |this, result, cx| match result {
+                        Ok(()) => {
+                            let key = if is_folder {
+                                "status.exported_folder"
+                            } else {
+                                "status.exported"
+                            };
+                            this.set_status(t!(key).to_string(), cx);
+                        }
+                        Err(e) => {
+                            let key = if is_folder {
+                                "error.export_folder_failed"
+                            } else {
+                                "error.export_failed"
+                            };
+                            this.set_status(t!(key, message = e.user_message()).to_string(), cx);
+                        }
                     },
                 );
             });
@@ -384,10 +408,10 @@ impl MtpBrowser {
         _: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some((handle, name, false)) = self.row_entry(action.row_ix, cx) else {
+        let Some((handle, name, is_folder)) = self.row_entry(action.row_ix, cx) else {
             return;
         };
-        self.export_entry(handle, name, cx);
+        self.export_selected(handle, name, is_folder, cx);
     }
 
     pub(super) fn on_context_delete(
@@ -452,7 +476,7 @@ impl MtpBrowser {
                                                     client.create_folder(parent, &name).await
                                                 },
                                                 |this, result, cx| match result {
-                                                    Ok(()) => this.load_current_folder(None, cx),
+                                                    Ok(_) => this.load_current_folder(None, cx),
                                                     Err(e) => this.set_status(
                                                         t!(
                                                             "error.create_failed",
@@ -494,9 +518,6 @@ impl MtpBrowser {
         let Some((handle, name, is_folder)) = self.selected_row_info(cx) else {
             return;
         };
-        if is_folder {
-            return;
-        }
-        self.export_entry(handle, name, cx);
+        self.export_selected(handle, name, is_folder, cx);
     }
 }

@@ -28,7 +28,7 @@ fn tool_btn(id: &'static str, icon: IconName) -> Button {
 impl MtpBrowser {
     pub(super) fn render_toolbar(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let collapsed = self.collapsed;
-        let can_go_back = self.session.as_ref().map_or(false, |s| s.can_go_back());
+        let can_go_back = self.session.as_ref().is_some_and(|s| s.can_go_back());
         let has_session = self.session.is_some();
         let has_selection = self.selected_row.is_some();
         let is_dark = cx.theme().mode.is_dark();
@@ -140,17 +140,50 @@ impl MtpBrowser {
                     .gap_1()
                     .items_center()
                     .child(
-                        tool_btn("import", IconName::ArrowUp)
-                            .disabled(!has_session)
-                            .tooltip(t!("toolbar.import").to_string())
-                            .on_click(cx.listener(Self::on_import)),
-                    )
-                    .child(
                         tool_btn("export", IconName::ArrowDown)
                             .disabled(!has_selection)
                             .tooltip(t!("toolbar.export").to_string())
                             .on_click(cx.listener(Self::on_export)),
                     )
+                    .child({
+                        let import_btn = tool_btn("import", IconName::ArrowUp)
+                            .disabled(!has_session)
+                            .tooltip(t!("toolbar.import").to_string());
+                        let selected_folder = self
+                            .selected_row_info(cx)
+                            .filter(|(_, _, is_folder)| *is_folder);
+                        if let Some((folder_handle, folder_name, _)) = selected_folder {
+                            let view = cx.entity();
+                            let current_label = t!("table.menu.import_current").to_string();
+                            let folder_label =
+                                t!("table.menu.import_into", name = folder_name.as_ref())
+                                    .to_string();
+                            import_btn
+                                .dropdown_menu(move |menu, window, _| {
+                                    menu.item(PopupMenuItem::new(current_label.clone()).on_click(
+                                        window.listener_for(&view, move |this, _, _, cx| {
+                                            let Some(session) = &this.session else {
+                                                return;
+                                            };
+                                            let parent = session.current_parent();
+                                            this.import_into(parent, cx);
+                                        }),
+                                    ))
+                                    .item(
+                                        PopupMenuItem::new(folder_label.clone()).on_click(
+                                            window.listener_for(&view, move |this, _, _, cx| {
+                                                this.import_into(Some(folder_handle), cx);
+                                            }),
+                                        ),
+                                    )
+                                })
+                                .into_any_element()
+                        } else {
+                            import_btn
+                                .on_click(cx.listener(Self::on_import))
+                                .into_any_element()
+                        }
+                    })
                     .child(
                         tool_btn("new-folder", IconName::Plus)
                             .disabled(!has_session)

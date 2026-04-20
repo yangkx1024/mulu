@@ -130,18 +130,20 @@ impl MtpClient {
         &self,
         parent: Option<ObjectHandle>,
         name: &str,
-    ) -> Result<(), MtpOpError> {
+    ) -> Result<ObjectHandle, MtpOpError> {
         let storage = self.device.storage(self.active).await?;
-        let result = storage.create_folder(self.root_parent(parent), name).await;
-        if let Err(e) = result {
-            if needs_all_handle_retry(parent, &e) {
-                self.root_uses_all_handle.store(true, Ordering::Relaxed);
-                storage.create_folder(Some(ObjectHandle::ALL), name).await?;
-            } else {
-                return Err(e.into());
+        match storage.create_folder(self.root_parent(parent), name).await {
+            Ok(handle) => Ok(handle),
+            Err(e) => {
+                if needs_all_handle_retry(parent, &e) {
+                    self.root_uses_all_handle.store(true, Ordering::Relaxed);
+                    let handle = storage.create_folder(Some(ObjectHandle::ALL), name).await?;
+                    Ok(handle)
+                } else {
+                    Err(e.into())
+                }
             }
         }
-        Ok(())
     }
 
     pub async fn delete(&self, handle: ObjectHandle) -> Result<(), MtpOpError> {
@@ -197,6 +199,54 @@ impl MtpClient {
             file.write_all(&bytes).await?;
         }
         file.flush().await?;
+        Ok(())
+    }
+
+    pub async fn upload_path(
+        &self,
+        parent: Option<ObjectHandle>,
+        path: &Path,
+    ) -> Result<(), MtpOpError> {
+        if tokio::fs::metadata(path).await?.is_dir() {
+            self.upload_folder(parent, path).await
+        } else {
+            self.upload_file(parent, path).await
+        }
+    }
+
+    pub async fn upload_folder(
+        &self,
+        parent: Option<ObjectHandle>,
+        local_path: &Path,
+    ) -> Result<(), MtpOpError> {
+        let name = local_path
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "unnamed".into());
+        let new_handle = self.create_folder(parent, &name).await?;
+
+        let mut entries = tokio::fs::read_dir(local_path).await?;
+        while let Some(entry) = entries.next_entry().await? {
+            Box::pin(self.upload_path(Some(new_handle), &entry.path())).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn download_folder_to(
+        &self,
+        handle: ObjectHandle,
+        local_dir: &Path,
+    ) -> Result<(), MtpOpError> {
+        tokio::fs::create_dir_all(local_dir).await?;
+        let entries = self.list(Some(handle)).await?;
+        for entry in entries {
+            let child = local_dir.join(entry.name.as_ref());
+            if entry.is_folder {
+                Box::pin(self.download_folder_to(entry.handle, &child)).await?;
+            } else {
+                self.download_to(entry.handle, &child).await?;
+            }
+        }
         Ok(())
     }
 }

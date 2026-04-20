@@ -66,80 +66,76 @@ impl MtpBrowser {
 
             device_rows.push(row);
 
-            if is_active {
-                if let Some(session) = &self.session {
-                    let active_storage = session.client.active();
-                    for storage in &session.storages {
-                        let storage_id = storage.id;
-                        let storage_name = storage.description.clone();
-                        let is_storage_active = storage_id == active_storage;
-                        let free = storage.free_bytes;
-                        let max = storage.max_bytes;
+            if is_active && let Some(session) = &self.session {
+                let active_storage = session.client.active();
+                for storage in &session.storages {
+                    let storage_id = storage.id;
+                    let storage_name = storage.description.clone();
+                    let is_storage_active = storage_id == active_storage;
+                    let free = storage.free_bytes;
+                    let max = storage.max_bytes;
 
-                        let progress_val = if max > 0 {
-                            ((max - free) as f64 / max as f64 * 100.0) as f32
-                        } else {
-                            0.0
-                        };
+                    let progress_val = if max > 0 {
+                        ((max - free) as f64 / max as f64 * 100.0) as f32
+                    } else {
+                        0.0
+                    };
 
-                        let free_str: SharedString =
-                            format!("{} free of {}", format_size(free), format_size(max)).into();
+                    let free_str: SharedString =
+                        format!("{} free of {}", format_size(free), format_size(max)).into();
 
-                        let storage_row = v_flex()
-                            .id(ElementId::Integer(storage_id.0 as u64))
-                            .mx_2()
-                            .px_2()
-                            .py_1p5()
-                            .cursor_pointer()
-                            .rounded(cx.theme().radius)
-                            .when(is_storage_active, |s| s.bg(cx.theme().sidebar_accent))
-                            .child(
-                                h_flex()
-                                    .gap_1p5()
-                                    .items_center()
-                                    .text_sm()
-                                    .when(is_storage_active, |s| {
-                                        s.font_medium()
-                                            .text_color(cx.theme().sidebar_accent_foreground)
-                                    })
-                                    .when(!is_storage_active, |s| {
-                                        s.text_color(cx.theme().foreground)
-                                    })
-                                    .child(Icon::new(IconName::HardDrive).size_3p5().text_color(
-                                        if is_storage_active {
-                                            cx.theme().blue
-                                        } else {
-                                            cx.theme().muted_foreground
-                                        },
-                                    ))
-                                    .child(storage_name.clone()),
+                    let storage_row = v_flex()
+                        .id(ElementId::Integer(storage_id.0 as u64))
+                        .mx_2()
+                        .px_2()
+                        .py_1p5()
+                        .cursor_pointer()
+                        .rounded(cx.theme().radius)
+                        .when(is_storage_active, |s| s.bg(cx.theme().sidebar_accent))
+                        .child(
+                            h_flex()
+                                .gap_1p5()
+                                .items_center()
+                                .text_sm()
+                                .when(is_storage_active, |s| {
+                                    s.font_medium()
+                                        .text_color(cx.theme().sidebar_accent_foreground)
+                                })
+                                .when(!is_storage_active, |s| s.text_color(cx.theme().foreground))
+                                .child(Icon::new(IconName::HardDrive).size_3p5().text_color(
+                                    if is_storage_active {
+                                        cx.theme().blue
+                                    } else {
+                                        cx.theme().muted_foreground
+                                    },
+                                ))
+                                .child(storage_name.clone()),
+                        )
+                        .when(is_storage_active, |this| {
+                            this.child(
+                                v_flex()
+                                    .gap_1()
+                                    .pt_2()
+                                    .pb_1()
+                                    .child(
+                                        Progress::new("storage-progress")
+                                            .value(progress_val)
+                                            .color(cx.theme().blue),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
+                                            .child(free_str),
+                                    ),
                             )
-                            .when(is_storage_active, |this| {
-                                this.child(
-                                    v_flex()
-                                        .gap_1()
-                                        .pt_2()
-                                        .pb_1()
-                                        .child(
-                                            Progress::new("storage-progress")
-                                                .value(progress_val)
-                                                .color(cx.theme().blue),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(cx.theme().muted_foreground)
-                                                .child(free_str),
-                                        ),
-                                )
-                            })
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                this.select_storage(storage_id, storage_name.clone(), cx);
-                            }))
-                            .into_any_element();
+                        })
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.select_storage(storage_id, storage_name.clone(), cx);
+                        }))
+                        .into_any_element();
 
-                        device_rows.push(storage_row);
-                    }
+                    device_rows.push(storage_row);
                 }
             }
         }
