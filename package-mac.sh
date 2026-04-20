@@ -13,15 +13,15 @@ for cmd in cargo cargo-packager codesign xcrun security; do
     command -v "$cmd" >/dev/null 2>&1 || die "missing required command: $cmd"
 done
 
-[[ -f .env ]] || die ".env not found (expected APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID, APPLE_SIGNING_IDENTITY)"
-
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
+if [[ -f .env ]]; then
+    set -a
+    # shellcheck disable=SC1091
+    source .env
+    set +a
+fi
 
 for var in APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_SIGNING_IDENTITY; do
-    [[ -n "${!var:-}" ]] || die "$var is not set in .env"
+    [[ -n "${!var:-}" ]] || die "$var is not set (export it or add it to .env)"
 done
 
 if ! security find-identity -v -p codesigning | grep -qF "$APPLE_SIGNING_IDENTITY"; then
