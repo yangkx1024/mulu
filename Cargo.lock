@@ -3676,6 +3676,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "mulu"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "gpui",
+ "gpui-component",
+ "gpui-component-assets",
+ "gpui_platform",
+ "mtp-rs",
+ "tokio",
+]
+
+[[package]]
 name = "naga"
 version = "29.0.0"
 source = "git+https://github.com/zed-industries/wgpu.git?branch=v29#a466bc382ea747f8e1ac810efdb6dcd49a514575"
@@ -8067,20 +8081,6 @@ dependencies = [
  "dlib",
  "once_cell",
  "pkg-config",
-]
-
-[[package]]
-name = "ympt"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "futures",
- "gpui",
- "gpui-component",
- "gpui-component-assets",
- "gpui_platform",
- "mtp-rs",
- "tokio",
 ]
 
 [[package]]
