@@ -17,6 +17,7 @@ pub struct StorageSummary {
     pub free_bytes: u64,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct DeviceSummary {
     pub location_id: u64,
     pub label: SharedString,

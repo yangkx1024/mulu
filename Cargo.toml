@@ -9,7 +9,8 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = ["fo
 gpui-component = { git = "https://github.com/longbridge/gpui-component" }
 gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
 mtp-rs = "0.13.1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "fs"] }
+nusb = "0.2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-util", "fs", "sync"] }
 bytes = "1"
 futures = "0.3"
 

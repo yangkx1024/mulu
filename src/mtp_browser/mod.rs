@@ -10,6 +10,7 @@ use gpui_component::*;
 
 use crate::model::Session;
 use crate::mtp::{DeviceSummary, ObjectHandle};
+use actions::NO_DEVICES_FOUND;
 use table::FolderDelegate;
 
 pub struct MtpBrowser {
@@ -33,11 +34,12 @@ impl MtpBrowser {
             table,
             devices: Vec::new(),
             session: None,
-            status: None,
+            status: Some(NO_DEVICES_FOUND.into()),
             selected_row: None,
             _subscriptions: subscriptions,
         };
         this.refresh_devices(cx);
+        crate::mtp::watch_hotplug(cx);
         this
     }
 
@@ -47,15 +49,19 @@ impl MtpBrowser {
     }
 
     fn navigate_to(&mut self, idx: usize, cx: &mut Context<Self>) {
-        if let Some(session) = self.session.as_mut() {
-            session.truncate_to(idx);
+        let select = self
+            .session
+            .as_mut()
+            .and_then(|s| s.truncate_to(idx));
+        if select.is_some() {
+            self.load_current_folder(select, cx);
         }
-        self.load_current_folder(cx);
     }
 
     fn navigate_back(&mut self, cx: &mut Context<Self>) {
-        if self.session.as_mut().map_or(false, |s| s.pop()) {
-            self.load_current_folder(cx);
+        let select = self.session.as_mut().and_then(|s| s.pop());
+        if select.is_some() {
+            self.load_current_folder(select, cx);
         }
     }
 
@@ -102,7 +108,7 @@ impl MtpBrowser {
                     if let Some(session) = self.session.as_mut() {
                         session.push_folder(name, handle);
                     }
-                    self.load_current_folder(cx);
+                    self.load_current_folder(None, cx);
                 }
             }
             _ => {}

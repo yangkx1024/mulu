@@ -6,7 +6,7 @@ use tokio::runtime::Runtime;
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();
 
-fn tokio_rt() -> &'static Runtime {
+pub(super) fn tokio_rt() -> &'static Runtime {
     RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)

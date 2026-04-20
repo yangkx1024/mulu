@@ -4,7 +4,9 @@ use crate::mtp::{MtpClient, ObjectHandle, StorageId, StorageSummary};
 
 pub struct Crumb {
     pub name: SharedString,
-    pub parent: Option<ObjectHandle>,
+    /// The folder's own object handle, used as the `parent` parameter when
+    /// listing its children. `None` for storage roots.
+    pub handle: Option<ObjectHandle>,
 }
 
 pub struct Session {
@@ -16,28 +18,31 @@ pub struct Session {
 
 impl Session {
     pub fn current_parent(&self) -> Option<ObjectHandle> {
-        self.path.last().and_then(|c| c.parent)
+        self.path.last().and_then(|c| c.handle)
     }
 
     pub fn push_folder(&mut self, name: SharedString, handle: ObjectHandle) {
         self.path.push(Crumb {
             name,
-            parent: Some(handle),
+            handle: Some(handle),
         });
     }
 
-    pub fn pop(&mut self) -> bool {
+    pub fn pop(&mut self) -> Option<ObjectHandle> {
         if self.path.len() > 1 {
-            self.path.pop();
-            true
+            self.path.pop().and_then(|c| c.handle)
         } else {
-            false
+            None
         }
     }
 
-    pub fn truncate_to(&mut self, idx: usize) {
-        if idx < self.path.len() {
+    pub fn truncate_to(&mut self, idx: usize) -> Option<ObjectHandle> {
+        if idx + 1 < self.path.len() {
+            let select = self.path[idx + 1].handle;
             self.path.truncate(idx + 1);
+            select
+        } else {
+            None
         }
     }
 
@@ -47,6 +52,6 @@ impl Session {
 
     pub fn reset_to_storage(&mut self, id: StorageId, name: SharedString) {
         self.client.set_active(id);
-        self.path = vec![Crumb { name, parent: None }];
+        self.path = vec![Crumb { name, handle: None }];
     }
 }

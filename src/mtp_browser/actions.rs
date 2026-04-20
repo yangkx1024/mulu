@@ -6,7 +6,11 @@ use gpui_component::*;
 
 use super::MtpBrowser;
 use crate::model::{Crumb, Session};
-use crate::mtp::{MtpClient, MtpOpError, ObjectHandle, StorageId, list_devices, spawn_mtp};
+use crate::mtp::{
+    DeviceSummary, MtpClient, MtpOpError, ObjectHandle, StorageId, list_devices, spawn_mtp,
+};
+
+pub(super) const NO_DEVICES_FOUND: &str = "No MTP devices found";
 
 #[derive(Clone, PartialEq, Debug, gpui::Action)]
 #[action(namespace = mtp_browser, no_json)]
@@ -30,20 +34,58 @@ gpui::actions!(mtp_browser, [ContextImportCurrent, ContextNewFolder]);
 
 impl MtpBrowser {
     pub(super) fn refresh_devices(&mut self, cx: &mut Context<Self>) {
-        match list_devices() {
-            Ok(devices) => {
-                self.status = if devices.is_empty() {
-                    Some("No MTP devices found".into())
-                } else {
-                    None
-                };
-                self.devices = devices;
-            }
+        self.apply_device_list(list_devices(), cx);
+    }
+
+    pub(crate) fn apply_device_list(
+        &mut self,
+        result: Result<Vec<DeviceSummary>, MtpOpError>,
+        cx: &mut Context<Self>,
+    ) {
+        let new_devices = match result {
+            Ok(d) => d,
             Err(e) => {
-                self.status = Some(format!("Failed to list devices: {}", e.user_message()).into());
+                self.status =
+                    Some(format!("Failed to list devices: {}", e.user_message()).into());
+                cx.notify();
+                return;
             }
+        };
+
+        if new_devices == self.devices {
+            return;
         }
+
+        self.devices = new_devices;
+
+        let active_gone = self.session.as_ref().is_some_and(|s| {
+            !self.devices.iter().any(|d| d.location_id == s.device_location)
+        });
+        if active_gone {
+            self.close_session(cx);
+        } else {
+            self.status = if self.devices.is_empty() {
+                Some(NO_DEVICES_FOUND.into())
+            } else {
+                None
+            };
+        }
+
         cx.notify();
+    }
+
+    pub(super) fn close_session(&mut self, cx: &mut Context<Self>) {
+        self.session = None;
+        self.selected_row = None;
+        self.table.update(cx, |state, cx| {
+            state.delegate_mut().rows.clear();
+            state.clear_selection(cx);
+        });
+        self.status = if self.devices.is_empty() {
+            Some(NO_DEVICES_FOUND.into())
+        } else {
+            Some("Device disconnected".into())
+        };
     }
 
     pub(super) fn open_device(&mut self, location_id: u64, cx: &mut Context<Self>) {
@@ -62,11 +104,11 @@ impl MtpBrowser {
                         storages,
                         path: vec![Crumb {
                             name: root_name,
-                            parent: None,
+                            handle: None,
                         }],
                     });
                     this.status = None;
-                    this.load_current_folder(cx);
+                    this.load_current_folder(None, cx);
                 }
                 Err(e) => {
                     this.status = Some(e.user_message().into());
@@ -86,17 +128,21 @@ impl MtpBrowser {
             return;
         };
         session.reset_to_storage(storage_id, storage_name);
-        self.selected_row = None;
-        self.load_current_folder(cx);
+        self.load_current_folder(None, cx);
     }
 
-    pub(super) fn load_current_folder(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn load_current_folder(
+        &mut self,
+        select: Option<ObjectHandle>,
+        cx: &mut Context<Self>,
+    ) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
         let parent = session.current_parent();
         let table = self.table.clone();
 
         self.selected_row = None;
+        self.table.update(cx, |state, cx| state.clear_selection(cx));
         self.status = Some("Loading…".into());
         cx.notify();
 
@@ -108,10 +154,19 @@ impl MtpBrowser {
                     Ok(entries) => {
                         let count = entries.len();
                         table.update(cx, |state, cx| {
-                            let delegate = state.delegate_mut();
-                            delegate.rows = entries;
-                            delegate.sort_default();
-                            cx.notify();
+                            let select_idx = {
+                                let delegate = state.delegate_mut();
+                                delegate.rows = entries;
+                                delegate.sort_default();
+                                select.and_then(|h| {
+                                    delegate.rows.iter().position(|r| r.handle == h)
+                                })
+                            };
+                            if let Some(idx) = select_idx {
+                                state.set_selected_row(idx, cx);
+                            } else {
+                                cx.notify();
+                            }
                         });
                         this.status = Some(format!("{count} items").into());
                     }
@@ -168,7 +223,7 @@ impl MtpBrowser {
                         Ok::<(), MtpOpError>(())
                     },
                     |this, result, cx| match result {
-                        Ok(()) => this.load_current_folder(cx),
+                        Ok(()) => this.load_current_folder(None, cx),
                         Err(e) => {
                             this.set_status(format!("Upload failed: {}", e.user_message()), cx)
                         }
@@ -253,7 +308,7 @@ impl MtpBrowser {
                             |this, result, cx| match result {
                                 Ok(()) => {
                                     this.selected_row = None;
-                                    this.load_current_folder(cx);
+                                    this.load_current_folder(None, cx);
                                 }
                                 Err(e) => this
                                     .set_status(format!("Delete failed: {}", e.user_message()), cx),
@@ -357,7 +412,7 @@ impl MtpBrowser {
                                                 client.create_folder(parent, &name).await
                                             },
                                             |this, result, cx| match result {
-                                                Ok(()) => this.load_current_folder(cx),
+                                                Ok(()) => this.load_current_folder(None, cx),
                                                 Err(e) => this.set_status(
                                                     format!("Create failed: {}", e.user_message()),
                                                     cx,
