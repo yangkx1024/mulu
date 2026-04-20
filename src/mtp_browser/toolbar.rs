@@ -26,6 +26,11 @@ impl MtpBrowser {
         } else {
             IconName::Moon
         };
+        let theme_tooltip = if is_dark {
+            "Switch to light theme"
+        } else {
+            "Switch to dark theme"
+        };
 
         let mut crumb_items: Vec<BreadcrumbItem> = Vec::new();
         if let Some(session) = &self.session {
@@ -65,6 +70,7 @@ impl MtpBrowser {
                     .child(
                         tool_btn("back", IconName::ChevronLeft)
                             .disabled(!can_go_back)
+                            .tooltip("Back")
                             .on_click(cx.listener(|this, _, _, cx| this.navigate_back(cx))),
                     )
                     .child(Breadcrumb::new().children(crumb_items)),
@@ -76,27 +82,32 @@ impl MtpBrowser {
                     .child(
                         tool_btn("import", IconName::ArrowUp)
                             .disabled(!has_session)
+                            .tooltip("Import from computer")
                             .on_click(cx.listener(Self::on_import)),
                     )
                     .child(
                         tool_btn("export", IconName::ArrowDown)
                             .disabled(!has_selection)
+                            .tooltip("Export to computer")
                             .on_click(cx.listener(Self::on_export)),
                     )
                     .child(
                         tool_btn("new-folder", IconName::Plus)
                             .disabled(!has_session)
+                            .tooltip("New folder")
                             .on_click(cx.listener(Self::on_new_folder)),
                     )
                     .child(
                         tool_btn("trash", IconName::Delete)
                             .disabled(!has_selection)
+                            .tooltip("Delete")
                             .on_click(cx.listener(Self::on_trash)),
                     )
                     .child(div().w(px(8.)))
                     .child(
-                        tool_btn("theme-toggle", theme_icon).on_click(cx.listener(
-                            move |_, _, window, cx| {
+                        tool_btn("theme-toggle", theme_icon)
+                            .tooltip(theme_tooltip)
+                            .on_click(cx.listener(move |_, _, window, cx| {
                                 let next = if is_dark {
                                     ThemeMode::Light
                                 } else {
@@ -106,8 +117,7 @@ impl MtpBrowser {
                                     cx.set_global(crate::ThemeAutoFollow(false));
                                 }
                                 Theme::change(next, Some(window), cx);
-                            },
-                        )),
+                            })),
                     ),
             )
             .into_any_element()
