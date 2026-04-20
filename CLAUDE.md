@@ -13,9 +13,9 @@ Mulu is a macOS/Linux desktop app that browses files on MTP devices (Android pho
 - `cargo check` / `cargo clippy` — typecheck / lints. There is no test suite.
 - `./package-mac.sh` — produces a signed+notarized `.app` / `.dmg` via `cargo-packager`. Requires `.env` with `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGNING_IDENTITY`, and the signing identity present in the keychain. The script rewrites `Cargo.toml` temporarily to inject `signing-identity` into `[package.metadata.packager.macos]` because `cargo-packager -c` replaces rather than merges.
 
-## Required sibling checkout
+## Git-sourced dependencies
 
-`Cargo.toml` contains `[patch.crates-io] nusb = { path = "../nusb" }`. A sibling `../nusb` checkout **must exist** for the build to resolve — this patch pins `core-foundation = 0.10.0` to match GPUI's pin. `gpui` and `gpui-component` are also pulled from git (Zed and Longbridge's forks), so the first build is slow and network-dependent.
+`Cargo.toml` patches `nusb` to `https://github.com/yangkx1024/nusb` to pin `core-foundation = 0.10.0` to match GPUI's pin. `gpui` and `gpui-component` are also pulled from git (Zed and Longbridge's forks), so the first build is slow and network-dependent.
 
 ## Architecture
 
