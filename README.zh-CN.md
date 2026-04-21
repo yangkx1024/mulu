@@ -8,12 +8,13 @@
 
 <img alt="Icon" src="./screenshots/app_screenshot.webp" />
 
-# 本地编译
+# 安装
 
-1. 直接`cargo run --release`运行二进制。或者
-2. `cargo packager --release` （需要先安装 [`cargo-packager`](https://crates.io/crates/cargo-packager)），会在build/release目录下生成app文件。
+## macOS
 
-# 通过 apt 安装（Debian / Ubuntu）
+从 [Releases 页面](https://github.com/yangkx1024/mulu/releases/latest) 下载最新的已签名和公证的 `Mulu_*.dmg`（Apple Silicon），打开后把 `Mulu.app` 拖入 `/Applications` 即可。
+
+## Debian / Ubuntu（apt）
 
 已在 https://yangkx1024.github.io/mulu/ 发布 apt 软件源，`Release` 文件由独立的 GPG 密钥签名。
 
@@ -27,7 +28,17 @@ sudo apt install mulu
 
 后续版本发布后直接 `apt upgrade` 即可获取。
 
-# 校验 Linux 发行版
+## Arch Linux（pacman）
+
+每个 Release 都会附带 `PKGBUILD` 以及对应的 `mulu_*.tar.gz` 源码包。在 [Releases 页面](https://github.com/yangkx1024/mulu/releases/latest) 将两者下载到同一目录，然后使用 `makepkg` 构建并安装：
+
+```sh
+makepkg -si
+```
+
+如果只想安装已构建好的包，也可以直接 `pacman -U mulu-*.pkg.tar.zst`。
+
+## 校验 Linux 发行版
 
 Linux 安装包（`.deb`、`.tar.gz`）同时使用 [minisign](https://jedisct1.github.io/minisign/) 对文件级签名，公钥保存在 [`minisign.pub`](./minisign.pub)。
 
@@ -37,6 +48,11 @@ Release 附带的 `.sig` 文件经过 base64 包装，先解码再用 [`rsign2`]
 base64 -d mulu_X.Y.Z_amd64.deb.sig > mulu_X.Y.Z_amd64.deb.minisig
 rsign verify mulu_X.Y.Z_amd64.deb -p minisign.pub -x mulu_X.Y.Z_amd64.deb.minisig
 ```
+
+# 本地编译
+
+1. 直接`cargo run --release`运行二进制。或者
+2. `cargo packager --release` （需要先安装 [`cargo-packager`](https://crates.io/crates/cargo-packager)），会在build/release目录下生成app文件。
 
 # License
 
