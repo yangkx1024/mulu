@@ -136,6 +136,10 @@ if ! plutil -extract LSApplicationCategoryType raw "$INFO_PLIST" >/dev/null 2>&1
     info "injecting LSApplicationCategoryType..."
     plutil -insert LSApplicationCategoryType -string "public.app-category.utilities" "$INFO_PLIST"
 fi
+if ! plutil -extract ITSAppUsesNonExemptEncryption raw "$INFO_PLIST" >/dev/null 2>&1; then
+    info "injecting ITSAppUsesNonExemptEncryption=false..."
+    plutil -insert ITSAppUsesNonExemptEncryption -bool false "$INFO_PLIST"
+fi
 
 info "embedding provisioning profile..."
 cp "$MAS_PROVISIONING_PROFILE" "$APP_PATH/Contents/embedded.provisionprofile"
