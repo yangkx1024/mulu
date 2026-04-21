@@ -1,0 +1,49 @@
+name: Sync README to gh-pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "README.zh-CN.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Copy README files
+        run: |
+          cp main/README.md gh-pages/README.md
+          cp main/README.zh-CN.md gh-pages/README.zh-CN.md
+
+      - name: Commit and push
+        working-directory: gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- README.md README.zh-CN.md; then
+            echo "No README changes to sync."
+            exit 0
+          fi
+          git add README.md README.zh-CN.md
+          git commit -m "Sync README from main@${GITHUB_SHA::7}"
+          git push origin gh-pages
