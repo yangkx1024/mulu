@@ -1,0 +1,16 @@
+Package: mulu
+Architecture: amd64
+Version: 0.1.0
+Priority: optional
+Maintainer:
+Installed-Size: 18809
+Depends: libxkbcommon0, libxkbcommon-x11-0, libfontconfig1, libfreetype6, libxcb1, libwayland-client0
+Filename: pool/main/m/mulu/mulu_0.1.0_amd64.deb
+Size: 8245860
+MD5sum: 18b674457e709ac67f7b7f0a498dc5bf
+SHA1: 5876d9ee79a3df7889234fcb70a40eb04f348e2f
+SHA256: 20e03ad1eb0f6a634dc6a146a944c74bae854e33c4e0b8869c01393cce5edb17
+SHA512: f7f7cf3201b28794310fdd88763920c50616772172cae550b05a51f34d90105ef69602d8c5774da5f9f1888b8b3f0fed9e888cb90b3fac44fbd1514dff622982
+Description: (none)
+ (none)
+

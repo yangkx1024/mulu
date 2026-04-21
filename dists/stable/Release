@@ -1,0 +1,24 @@
+Architectures: amd64
+Codename: stable
+Components: main
+Date: Tue, 21 Apr 2026 03:19:41 +0000
+Description: Mulu apt repository
+Label: Mulu
+Origin: Mulu
+Suite: stable
+MD5Sum:
+ d9a493970172b8be437ebcc9ab8dff15              165 Release
+ cd566d2707ebc95e1ceb47f89ecc6bb9              593 main/binary-amd64/Packages
+ c87fccfa7389e1ffc3c3017dd9b4b1fb              433 main/binary-amd64/Packages.gz
+SHA1:
+ 582719597b0944b58e34cd982dc4f3bc9c25baf8              165 Release
+ e9981abcb276ef32a8d4f75a00f72885d033d66a              593 main/binary-amd64/Packages
+ 5c5398479e248352b02c73596e07459c0984d395              433 main/binary-amd64/Packages.gz
+SHA256:
+ a1c185886bcf0d78159ce38b9bc49847424d8ab7b54efbfc971d53cf895d60d9              165 Release
+ c9f6bb367031dec4b31d7dc652b257f55db6ea59e2328da1aecf1386dcfe449b              593 main/binary-amd64/Packages
+ 3524ae3be2be695fe7d30f04048eae65e9ee6d6efe9233e23f68dc35b48422e9              433 main/binary-amd64/Packages.gz
+SHA512:
+ 3ecae4d600a61db1187fe332fdceb07289cbe4e35cc707edbf76ddcf02960736e0c800d7afb8928cab3e305222ced25723a186ffdcba249db3633bbb9eea0680              165 Release
+ 658943ace47605620ee2aa9f38f146758bbb58cb66f01966b8c70d33fe037e29035ec566ce7297fb0f43fec2478e1235461171968f5ede4e504f27214879e034              593 main/binary-amd64/Packages
+ 34622580bf0b006df0d9ee95ddc18e7302b400c74cef400fc4838d1e2f6a9661dc6909dd55cdb4b1e182c67e1b63b2d5ad3556f1c2c45e8fa51aeb259341d9cf              433 main/binary-amd64/Packages.gz
