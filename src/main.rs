@@ -2,6 +2,7 @@ mod format;
 mod model;
 mod mtp;
 mod mtp_browser;
+mod update_check;
 
 use gpui::*;
 use gpui_component::*;

@@ -10,6 +10,7 @@ use gpui_component::*;
 
 use crate::model::Session;
 use crate::mtp::{DeviceSummary, ObjectHandle};
+use crate::update_check::UpdateInfo;
 use actions::no_devices_found;
 use table::FolderDelegate;
 
@@ -20,6 +21,7 @@ pub struct MtpBrowser {
     session: Option<Session>,
     status: Option<SharedString>,
     selected_row: Option<usize>,
+    update_info: Option<UpdateInfo>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -36,11 +38,26 @@ impl MtpBrowser {
             session: None,
             status: Some(no_devices_found()),
             selected_row: None,
+            update_info: None,
             _subscriptions: subscriptions,
         };
         this.refresh_devices(cx);
         crate::mtp::watch_hotplug(cx);
+        this.check_for_updates(cx);
         this
+    }
+
+    fn check_for_updates(&mut self, cx: &mut Context<Self>) {
+        crate::mtp::spawn_mtp(
+            cx,
+            crate::update_check::check_for_update(),
+            |this, info, cx| {
+                if info.is_some() {
+                    this.update_info = info;
+                    cx.notify();
+                }
+            },
+        );
     }
 
     pub(super) fn set_status(&mut self, msg: impl Into<SharedString>, cx: &mut Context<Self>) {

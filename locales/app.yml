@@ -171,6 +171,11 @@ status.deleting:
   zh-CN: 正在删除……
   zh-HK: 正在刪除……
   ja: 削除中…
+status.update_available:
+  en: 'New version %{version} available'
+  zh-CN: 发现新版本 %{version}
+  zh-HK: 有新版本 %{version}
+  ja: 新しいバージョン %{version} があります
 
 # Errors surfaced as status text
 error.list_devices_failed:
