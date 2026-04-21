@@ -29,7 +29,14 @@ semver = { version = "1", optional = true }
 product-name = "Mulu"
 identifier = "net.yangkx.mulu"
 before-packaging-command = "cargo build --release"
-icons = ["icon.png"]
+icons = [
+    "linux-icons/32x32.png",
+    "linux-icons/128x128.png",
+    "linux-icons/256x256.png",
+    "linux-icons/512x512.png",
+    "linux-icons/1024x1024.png",
+    "Mulu.icns",
+]
 formats = ["deb", "pacman", "dmg"]
 category = "Utility"
 
