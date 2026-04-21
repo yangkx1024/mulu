@@ -11,7 +11,10 @@ Mulu is a macOS/Linux desktop app that browses files on MTP devices (Android pho
 - `cargo run` — debug build and launch the app.
 - `cargo build --release` — release binary at `target/release/mulu`.
 - `cargo check` / `cargo clippy` — typecheck / lints. There is no test suite.
-- `./package-mac.sh` — produces a signed+notarized `.app` / `.dmg` via `cargo-packager`. Requires `.env` with `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGNING_IDENTITY`, and the signing identity present in the keychain. The script rewrites `Cargo.toml` temporarily to inject `signing-identity` into `[package.metadata.packager.macos]` because `cargo-packager -c` replaces rather than merges.
+- `./package-mac.sh [direct|mas]` — produces a macOS distribution (default `direct`).
+  - `direct` (default): signed+notarized `.dmg` via `cargo-packager`. Requires `.env` with `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGNING_IDENTITY`, and the signing identity in the keychain.
+  - `mas`: Mac App Store `.pkg` at `target/mas/Mulu.pkg`. Builds with `--no-default-features` so the `updater` feature is compiled out (MAS guideline 2.4.5). Requires `.env` with `APPLE_TEAM_ID`, `MAS_APP_SIGNING_IDENTITY`, `MAS_INSTALLER_SIGNING_IDENTITY`, `MAS_PROVISIONING_PROFILE`.
+  - Both modes temporarily rewrite `Cargo.toml` because `cargo-packager -c` replaces rather than merges.
 
 ## Git-sourced dependencies
 

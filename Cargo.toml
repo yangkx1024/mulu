@@ -1,7 +1,13 @@
 [package]
 name = "mulu"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
+
+[features]
+default = ["updater"]
+# In-app update checker (pings GitHub releases). Mac App Store builds must disable
+# this to comply with guideline 2.4.5 — the store handles updates itself.
+updater = ["dep:ureq", "dep:serde", "dep:semver"]
 
 [dependencies]
 gpui = { git = "https://github.com/zed-industries/zed" }
@@ -15,9 +21,9 @@ bytes = "1"
 futures = "0.3"
 rust-i18n = "4"
 sys-locale = "0.3"
-ureq = { version = "2", default-features = false, features = ["tls", "json"] }
-serde = { version = "1", features = ["derive"] }
-semver = "1"
+ureq = { version = "2", default-features = false, features = ["tls", "json"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+semver = { version = "1", optional = true }
 
 [package.metadata.packager]
 product-name = "Mulu"
@@ -25,6 +31,7 @@ identifier = "net.yangkx.mulu"
 before-packaging-command = "cargo build --release"
 icons = ["icon.png"]
 formats = ["deb", "pacman", "dmg"]
+category = "Utility"
 
 [package.metadata.packager.macos]
 minimum-system-version = "10.15"
