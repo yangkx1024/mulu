@@ -92,6 +92,7 @@ jobs:
             libudev-dev \
             libwayland-dev \
             libxkbcommon-dev \
+            libxkbcommon-x11-dev \
             libx11-dev \
             libxcb-shape0-dev \
             libxcb-xfixes0-dev

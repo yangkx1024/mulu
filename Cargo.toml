@@ -29,13 +29,20 @@ minimum-system-version = "10.15"
 [package.metadata.packager.deb]
 depends = [
   "libxkbcommon0",
+  "libxkbcommon-x11-0",
   "libfontconfig1",
+  "libfreetype6",
+  "libxcb1",
+  "libwayland-client0",
 ]
 
 [package.metadata.packager.pacman]
 depends = [
   "libxkbcommon",
   "fontconfig",
+  "freetype2",
+  "libxcb",
+  "wayland",
 ]
 
 # `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
