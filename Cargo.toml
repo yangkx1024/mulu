@@ -34,7 +34,7 @@ formats = ["deb", "pacman", "dmg"]
 category = "Utility"
 
 [package.metadata.packager.macos]
-minimum-system-version = "10.15"
+minimum-system-version = "12.0"
 
 [package.metadata.packager.deb]
 depends = [
