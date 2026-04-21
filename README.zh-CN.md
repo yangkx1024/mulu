@@ -36,8 +36,6 @@ sudo apt install mulu
 makepkg -si
 ```
 
-如果只想安装已构建好的包，也可以直接 `pacman -U mulu-*.pkg.tar.zst`。
-
 ## 校验 Linux 发行版
 
 Linux 安装包（`.deb`、`.tar.gz`）同时使用 [minisign](https://jedisct1.github.io/minisign/) 对文件级签名，公钥保存在 [`minisign.pub`](./minisign.pub)。

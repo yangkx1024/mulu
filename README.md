@@ -36,8 +36,6 @@ Each release ships a `PKGBUILD` alongside a `mulu_*.tar.gz` source tarball. Down
 makepkg -si
 ```
 
-`pacman -U mulu-*.pkg.tar.zst` also works if you only want to install a pre-built package.
-
 ## Verify Linux releases
 
 Linux packages (`.deb`, `.tar.gz`) are also signed with [minisign](https://jedisct1.github.io/minisign/) for file-level verification. The public key lives at [`minisign.pub`](./minisign.pub).
