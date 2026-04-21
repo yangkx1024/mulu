@@ -122,3 +122,97 @@ jobs:
             target/release/mulu_*.tar.gz
             target/release/mulu_*.tar.gz.sig
             target/release/PKGBUILD
+
+  publish-apt:
+    name: Publish apt repo
+    needs: [resolve-version, build-linux]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-apt
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PKG_NAME: mulu
+      SUITE: stable
+      COMPONENT: main
+      ARCH: amd64
+    steps:
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils gnupg
+
+      - name: Clone gh-pages (bootstrap if missing)
+        run: |
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if ! git clone --depth 1 --branch gh-pages "$REPO_URL" apt-repo 2>/dev/null; then
+            git clone --depth 1 "$REPO_URL" apt-repo
+            cd apt-repo
+            git checkout --orphan gh-pages
+            git rm -rf . >/dev/null 2>&1 || true
+            cd -
+          fi
+          cd apt-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Download .deb from release
+        run: |
+          POOL_DIR="apt-repo/pool/${COMPONENT}/${PKG_NAME:0:1}/${PKG_NAME}"
+          mkdir -p "$POOL_DIR"
+          gh release download "${{ needs.resolve-version.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "${PKG_NAME}_*_${ARCH}.deb" \
+            --dir "$POOL_DIR" \
+            --clobber
+
+      - name: Import GPG key
+        run: |
+          printf '%s' "${{ secrets.APT_GPG_PRIVATE_KEY }}" | gpg --batch --import
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+
+      - name: Build repo metadata
+        working-directory: apt-repo
+        run: |
+          DIST_DIR="dists/${SUITE}/${COMPONENT}/binary-${ARCH}"
+          mkdir -p "$DIST_DIR"
+          apt-ftparchive --arch "$ARCH" packages pool/ > "$DIST_DIR/Packages"
+          gzip -9kf "$DIST_DIR/Packages"
+
+          cat > "$RUNNER_TEMP/apt-ftparchive.conf" <<EOF
+          APT::FTPArchive::Release::Origin "Mulu";
+          APT::FTPArchive::Release::Label "Mulu";
+          APT::FTPArchive::Release::Suite "${SUITE}";
+          APT::FTPArchive::Release::Codename "${SUITE}";
+          APT::FTPArchive::Release::Architectures "${ARCH}";
+          APT::FTPArchive::Release::Components "${COMPONENT}";
+          APT::FTPArchive::Release::Description "Mulu apt repository";
+          EOF
+
+          apt-ftparchive -c "$RUNNER_TEMP/apt-ftparchive.conf" release "dists/${SUITE}" > "dists/${SUITE}/Release"
+
+      - name: Sign Release
+        working-directory: apt-repo
+        run: |
+          gpg --batch --yes --default-key "$GPG_KEY_ID" \
+            --detach-sign --armor \
+            -o "dists/${SUITE}/Release.gpg" "dists/${SUITE}/Release"
+          gpg --batch --yes --default-key "$GPG_KEY_ID" \
+            --clearsign \
+            -o "dists/${SUITE}/InRelease" "dists/${SUITE}/Release"
+
+      - name: Export public key
+        working-directory: apt-repo
+        run: gpg --armor --export "$GPG_KEY_ID" > pubkey.asc
+
+      - name: Commit and push
+        working-directory: apt-repo
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Publish ${{ needs.resolve-version.outputs.tag }}"
+            git push origin gh-pages
+          fi
