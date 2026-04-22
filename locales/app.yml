@@ -156,11 +156,21 @@ status.exporting:
   zh-CN: 正在导出 %{name}……
   zh-HK: 正在匯出 %{name}……
   ja: '%{name} を書き出し中…'
+status.exporting_n:
+  en: 'Exporting %{count} items…'
+  zh-CN: 正在导出 %{count} 项……
+  zh-HK: 正在匯出 %{count} 項……
+  ja: '%{count} 項目を書き出し中…'
 status.exported:
   en: Exported
   zh-CN: 导出完成
   zh-HK: 匯出完成
   ja: 書き出しました
+status.exported_n:
+  en: 'Exported %{count} items'
+  zh-CN: 已导出 %{count} 项
+  zh-HK: 已匯出 %{count} 項
+  ja: '%{count} 項目を書き出しました'
 status.exporting_folder:
   en: 'Exporting folder %{name}…'
   zh-CN: 正在导出文件夹 %{name}……
@@ -208,11 +218,21 @@ error.export_folder_failed:
   zh-CN: 文件夹导出失败:%{message}
   zh-HK: '資料夾匯出失敗:%{message}'
   ja: 'フォルダの書き出しに失敗しました: %{message}'
+error.export_n_failed:
+  en: '%{failed} of %{total} exports failed (e.g. %{first})'
+  zh-CN: '%{total} 项中有 %{failed} 项导出失败(例如 %{first})'
+  zh-HK: '%{total} 項中有 %{failed} 項匯出失敗(例如 %{first})'
+  ja: '%{total} 件中 %{failed} 件の書き出しに失敗しました(例: %{first})'
 error.delete_failed:
   en: 'Delete failed: %{message}'
   zh-CN: 删除失败:%{message}
   zh-HK: '刪除失敗:%{message}'
   ja: '削除に失敗しました: %{message}'
+error.delete_n_failed:
+  en: '%{failed} of %{total} deletions failed (e.g. %{first})'
+  zh-CN: '%{total} 项中有 %{failed} 项删除失败(例如 %{first})'
+  zh-HK: '%{total} 項中有 %{failed} 項刪除失敗(例如 %{first})'
+  ja: '%{total} 件中 %{failed} 件の削除に失敗しました(例: %{first})'
 error.create_failed:
   en: 'Create failed: %{message}'
   zh-CN: 创建失败:%{message}
@@ -247,11 +267,54 @@ dialog.delete.description:
   zh-CN: 删除 “%{name}”?此操作不可撤销。
   zh-HK: 要刪除「%{name}」嗎?此動作無法復原。
   ja: 「%{name}」を削除しますか?この操作は取り消せません。
+dialog.delete.description_n:
+  en: |-
+    Delete %{count} items? This cannot be undone.
+    %{names}
+  zh-CN: |-
+    删除 %{count} 项?此操作不可撤销。
+    %{names}
+  zh-HK: |-
+    要刪除 %{count} 項嗎?此動作無法復原。
+    %{names}
+  ja: |-
+    %{count} 項目を削除しますか?この操作は取り消せません。
+    %{names}
+dialog.delete.and_more:
+  en: '…and %{count} more'
+  zh-CN: 还有 %{count} 项
+  zh-HK: 還有 %{count} 項
+  ja: ほか %{count} 項目
 dialog.delete.ok:
   en: Delete
   zh-CN: 删除
   zh-HK: 刪除
   ja: 削除
+dialog.delete_error.title:
+  en: Delete failed
+  zh-CN: 删除失败
+  zh-HK: 刪除失敗
+  ja: 削除に失敗しました
+dialog.export_error.title:
+  en: Export failed
+  zh-CN: 导出失败
+  zh-HK: 匯出失敗
+  ja: 書き出しに失敗しました
+dialog.import_error.title:
+  en: Import failed
+  zh-CN: 导入失败
+  zh-HK: 匯入失敗
+  ja: 読み込みに失敗しました
+dialog.create_folder_error.title:
+  en: Create folder failed
+  zh-CN: 创建文件夹失败
+  zh-HK: 建立資料夾失敗
+  ja: フォルダの作成に失敗しました
+dialog.ok:
+  en: OK
+  zh-CN: 确定
+  zh-HK: 確定
+  ja: OK
 dialog.cancel:
   en: Cancel
   zh-CN: 取消

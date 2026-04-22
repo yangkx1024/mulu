@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use gpui::*;
 use gpui_component::menu::PopupMenu;
 use gpui_component::table::{Column, ColumnSort, DataTable, TableDelegate, TableState};
@@ -19,6 +21,12 @@ const PADDING_ROWS: usize = 5;
 
 pub struct FolderDelegate {
     pub rows: Vec<FileEntry>,
+    pub selected_rows: BTreeSet<usize>,
+    /// Mirror of `TableState::selected_row` — the row the table paints its
+    /// built-in selection overlay on. We skip our own overlay there so the
+    /// focus row doesn't render a doubled highlight.
+    pub focus_row: Option<usize>,
+    pub view: Option<WeakEntity<MtpBrowser>>,
     columns: Vec<Column>,
 }
 
@@ -26,6 +34,9 @@ impl FolderDelegate {
     pub fn new() -> Self {
         Self {
             rows: Vec::new(),
+            selected_rows: BTreeSet::new(),
+            focus_row: None,
+            view: None,
             columns: localized_columns(),
         }
     }
@@ -97,6 +108,48 @@ impl TableDelegate for FolderDelegate {
 
     fn column(&self, col_ix: usize, _cx: &App) -> Column {
         self.columns[col_ix].clone()
+    }
+
+    fn render_tr(
+        &mut self,
+        row_ix: usize,
+        _: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Stateful<Div> {
+        let mut row = div().id(("row", row_ix));
+        if row_ix >= self.rows.len() {
+            return row;
+        }
+        // The focus row gets its highlight from the table's built-in single-row
+        // overlay. For every other selected row, mirror that overlay here so
+        // all selected rows render identically.
+        let is_selected = self.selected_rows.contains(&row_ix);
+        let is_focus = self.focus_row == Some(row_ix);
+        if is_selected && !is_focus {
+            row = row.child(
+                div()
+                    .absolute()
+                    .top(if row_ix == 0 { px(0.) } else { px(-1.) })
+                    .left(px(0.))
+                    .right(px(0.))
+                    .bottom(px(-1.))
+                    .bg(cx.theme().table_active)
+                    .border_1()
+                    .border_color(cx.theme().table_active_border),
+            );
+        }
+        if let Some(view) = self.view.clone() {
+            row = row.on_mouse_down(
+                MouseButton::Left,
+                move |e: &MouseDownEvent, _, cx| {
+                    let modifiers = e.modifiers;
+                    let _ = view.update(cx, |this, cx| {
+                        this.handle_row_mouse_down(row_ix, modifiers, cx);
+                    });
+                },
+            );
+        }
+        row
     }
 
     fn context_menu(
