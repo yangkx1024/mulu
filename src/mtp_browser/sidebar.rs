@@ -83,8 +83,12 @@ impl MtpBrowser {
                         0.0
                     };
 
-                    let free_str: SharedString =
-                        format!("{} free of {}", format_size(free), format_size(max)).into();
+                    let free_str: SharedString = t!(
+                        "sidebar.storage.free_of",
+                        free = format_size(free),
+                        total = format_size(max)
+                    )
+                    .into();
 
                     let storage_row = v_flex()
                         .id(ElementId::Integer(storage_id.0 as u64))
