@@ -6,6 +6,11 @@ sidebar.devices:
   zh-CN: 设备
   zh-HK: 裝置
   ja: デバイス
+sidebar.storage.free_of:
+  en: '%{free} free of %{total}'
+  zh-CN: 可用 %{free},共 %{total}
+  zh-HK: 可用 %{free},共 %{total}
+  ja: '空き %{free} / 合計 %{total}'
 
 # Toolbar tooltips
 toolbar.back:
