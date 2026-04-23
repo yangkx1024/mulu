@@ -128,12 +128,16 @@ impl MtpBrowser {
             for ix in lo..=hi {
                 self.selected_rows.insert(ix);
             }
-            self.anchor_row = Some(row_ix);
+            self.anchor_row = Some(anchor);
         } else if modifiers.secondary() {
-            if !self.selected_rows.insert(row_ix) {
+            if self.selected_rows.insert(row_ix) {
+                self.anchor_row = Some(row_ix);
+            } else {
                 self.selected_rows.remove(&row_ix);
+                if self.anchor_row == Some(row_ix) {
+                    self.anchor_row = self.selected_rows.iter().next().copied();
+                }
             }
-            self.anchor_row = Some(row_ix);
         } else {
             self.selected_rows.clear();
             self.selected_rows.insert(row_ix);
@@ -207,6 +211,15 @@ impl MtpBrowser {
             TableEvent::SelectRow(row_ix) => {
                 if self.suppress_select_row {
                     self.suppress_select_row = false;
+                    if !self.selected_rows.contains(row_ix) {
+                        if let Some(next_focus) = self.selected_rows.iter().next().copied() {
+                            self.sync_table_focus_to(next_focus, cx);
+                            self.push_selection_to_delegate(cx);
+                        } else {
+                            self.clear_selection(cx);
+                        }
+                        return;
+                    }
                     // The table just updated its `selected_row` (the focus
                     // overlay target). Mirror it into the delegate so render_tr
                     // skips our own overlay on the new focus row.
