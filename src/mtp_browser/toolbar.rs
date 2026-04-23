@@ -30,7 +30,7 @@ impl MtpBrowser {
         let collapsed = self.collapsed;
         let can_go_back = self.session.as_ref().is_some_and(|s| s.can_go_back());
         let has_session = self.session.is_some();
-        let has_selection = self.selected_row.is_some();
+        let has_selection = !self.selected_rows.is_empty();
         let is_dark = cx.theme().mode.is_dark();
         let theme_icon = if is_dark {
             IconName::Sun
@@ -149,10 +149,8 @@ impl MtpBrowser {
                         let import_btn = tool_btn("import", IconName::ArrowUp)
                             .disabled(!has_session)
                             .tooltip(t!("toolbar.import").to_string());
-                        let selected_folder = self
-                            .selected_row_info(cx)
-                            .filter(|(_, _, is_folder)| *is_folder);
-                        if let Some((folder_handle, folder_name, _)) = selected_folder {
+                        let selected_folder = self.single_selected_folder(cx);
+                        if let Some((folder_handle, folder_name)) = selected_folder {
                             let view = cx.entity();
                             let current_label = t!("table.menu.import_current").to_string();
                             let folder_label =
@@ -161,18 +159,18 @@ impl MtpBrowser {
                             import_btn
                                 .dropdown_menu(move |menu, window, _| {
                                     menu.item(PopupMenuItem::new(current_label.clone()).on_click(
-                                        window.listener_for(&view, move |this, _, _, cx| {
+                                        window.listener_for(&view, move |this, _, window, cx| {
                                             let Some(session) = &this.session else {
                                                 return;
                                             };
                                             let parent = session.current_parent();
-                                            this.import_into(parent, cx);
+                                            this.import_into(parent, window, cx);
                                         }),
                                     ))
                                     .item(
                                         PopupMenuItem::new(folder_label.clone()).on_click(
-                                            window.listener_for(&view, move |this, _, _, cx| {
-                                                this.import_into(Some(folder_handle), cx);
+                                            window.listener_for(&view, move |this, _, window, cx| {
+                                                this.import_into(Some(folder_handle), window, cx);
                                             }),
                                         ),
                                     )

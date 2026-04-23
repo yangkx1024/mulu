@@ -98,10 +98,9 @@ impl MtpBrowser {
 
     pub(super) fn close_session(&mut self, cx: &mut Context<Self>) {
         self.session = None;
-        self.selected_row = None;
-        self.table.update(cx, |state, cx| {
+        self.clear_selection(cx);
+        self.table.update(cx, |state, _| {
             state.delegate_mut().rows.clear();
-            state.clear_selection(cx);
         });
         self.status = if self.devices.is_empty() {
             Some(no_devices_found())
@@ -163,8 +162,7 @@ impl MtpBrowser {
         let parent = session.current_parent();
         let table = self.table.clone();
 
-        self.selected_row = None;
-        self.table.update(cx, |state, cx| state.clear_selection(cx));
+        self.clear_selection(cx);
         self.status = Some(t!("status.loading").to_string().into());
         cx.notify();
 
@@ -175,7 +173,7 @@ impl MtpBrowser {
                 match result {
                     Ok(entries) => {
                         let count = entries.len();
-                        table.update(cx, |state, cx| {
+                        let select_idx = table.update(cx, |state, cx| {
                             let select_idx = {
                                 let delegate = state.delegate_mut();
                                 delegate.rows = entries;
@@ -183,12 +181,14 @@ impl MtpBrowser {
                                 select
                                     .and_then(|h| delegate.rows.iter().position(|r| r.handle == h))
                             };
-                            if let Some(idx) = select_idx {
-                                state.set_selected_row(idx, cx);
-                            } else {
+                            if select_idx.is_none() {
                                 cx.notify();
                             }
+                            select_idx
                         });
+                        if let Some(idx) = select_idx {
+                            this.replace_selection(idx, cx);
+                        }
                         this.status = Some(t!("status.items", count = count).to_string().into());
                     }
                     Err(e) => {
@@ -205,10 +205,11 @@ impl MtpBrowser {
     }
 
     pub fn on_trash(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
-        let Some((handle, name, _)) = self.selected_row_info(cx) else {
+        let entries = self.selected_entries(cx);
+        if entries.is_empty() {
             return;
-        };
-        self.delete_entry(handle, name, window, cx);
+        }
+        self.delete_entries(entries, window, cx);
     }
 
     pub(super) fn row_entry(
@@ -220,9 +221,15 @@ impl MtpBrowser {
         Some((row.handle, row.name.clone(), row.is_folder))
     }
 
-    pub(super) fn import_into(&mut self, parent: Option<ObjectHandle>, cx: &mut Context<Self>) {
+    pub(super) fn import_into(
+        &mut self,
+        parent: Option<ObjectHandle>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
+        let window_handle = window.window_handle();
 
         let rx = cx.prompt_for_paths(PathPromptOptions {
             files: true,
@@ -242,17 +249,30 @@ impl MtpBrowser {
                 spawn_mtp(
                     cx,
                     async move {
+                        let mut errors: Vec<(SharedString, String)> = Vec::new();
                         for path in &paths {
-                            client.upload_path(parent, path).await?;
+                            if let Err(e) = client.upload_path(parent, path).await {
+                                let name: SharedString = path
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or_default()
+                                    .to_string()
+                                    .into();
+                                errors.push((name, e.user_message().to_string()));
+                            }
                         }
-                        Ok::<(), MtpOpError>(())
+                        errors
                     },
-                    |this, result, cx| match result {
-                        Ok(()) => this.load_current_folder(None, cx),
-                        Err(e) => this.set_status(
-                            t!("error.upload_failed", message = e.user_message()).to_string(),
-                            cx,
-                        ),
+                    move |this, errors, cx| {
+                        this.load_current_folder(None, cx);
+                        if !errors.is_empty() {
+                            open_error_list_dialog(
+                                window_handle,
+                                cx,
+                                t!("dialog.import_error.title").to_string(),
+                                errors,
+                            );
+                        }
                     },
                 );
             });
@@ -260,15 +280,18 @@ impl MtpBrowser {
         .detach();
     }
 
-    fn export_selected(
+    fn export_entries(
         &mut self,
-        handle: ObjectHandle,
-        name: SharedString,
-        is_folder: bool,
+        entries: Vec<(ObjectHandle, SharedString, bool)>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if entries.is_empty() {
+            return;
+        }
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
+        let window_handle = window.window_handle();
 
         let rx = cx.prompt_for_paths(PathPromptOptions {
             files: false,
@@ -284,40 +307,79 @@ impl MtpBrowser {
             let Some(dir) = dirs.into_iter().next() else {
                 return;
             };
-            let dest = dir.join(name.as_ref());
             let _ = this.update(cx, |this, cx| {
-                let in_progress_key = if is_folder {
-                    "status.exporting_folder"
-                } else {
-                    "status.exporting"
-                };
-                this.status = Some(t!(in_progress_key, name = name.as_ref()).to_string().into());
+                let total = entries.len();
+                let single = (total == 1).then(|| entries[0].2);
+                this.status = Some(match single {
+                    Some(is_folder) => {
+                        let key = if is_folder {
+                            "status.exporting_folder"
+                        } else {
+                            "status.exporting"
+                        };
+                        t!(key, name = entries[0].1.as_ref()).to_string().into()
+                    }
+                    None => t!("status.exporting_n", count = total).to_string().into(),
+                });
                 cx.notify();
                 spawn_mtp(
                     cx,
                     async move {
-                        if is_folder {
-                            client.download_folder_to(handle, &dest).await
-                        } else {
-                            client.download_to(handle, &dest).await
+                        let mut errors: Vec<(SharedString, String)> = Vec::new();
+                        for (handle, name, is_folder) in entries {
+                            let dest = dir.join(name.as_ref());
+                            let result = if is_folder {
+                                client.download_folder_to(handle, &dest).await
+                            } else {
+                                client.download_to(handle, &dest).await
+                            };
+                            if let Err(e) = result {
+                                errors.push((name, e.user_message().to_string()));
+                            }
                         }
+                        errors
                     },
-                    move |this, result, cx| match result {
-                        Ok(()) => {
-                            let key = if is_folder {
-                                "status.exported_folder"
-                            } else {
-                                "status.exported"
-                            };
-                            this.set_status(t!(key).to_string(), cx);
-                        }
-                        Err(e) => {
-                            let key = if is_folder {
-                                "error.export_folder_failed"
-                            } else {
-                                "error.export_failed"
-                            };
-                            this.set_status(t!(key, message = e.user_message()).to_string(), cx);
+                    move |this, errors, cx| {
+                        let failed = errors.len();
+                        let msg = match (single, errors.first()) {
+                            (Some(is_folder), None) => {
+                                let key = if is_folder {
+                                    "status.exported_folder"
+                                } else {
+                                    "status.exported"
+                                };
+                                t!(key).to_string()
+                            }
+                            (None, None) => {
+                                t!("status.exported_n", count = total).to_string()
+                            }
+                            (Some(is_folder), Some((_, err))) => {
+                                let key = if is_folder {
+                                    "error.export_folder_failed"
+                                } else {
+                                    "error.export_failed"
+                                };
+                                t!(key, message = err.as_str()).to_string()
+                            }
+                            (None, Some((name, err))) => {
+                                let first = format!("{name}: {err}");
+                                t!(
+                                    "error.export_n_failed",
+                                    failed = failed,
+                                    total = total,
+                                    first = first.as_str()
+                                )
+                                .to_string()
+                            }
+                        };
+                        this.set_status(msg, cx);
+                        if !errors.is_empty() {
+                            open_error_list_dialog(
+                                window_handle,
+                                cx,
+                                t!("dialog.export_error.title").to_string(),
+                                errors,
+                            );
                         }
                     },
                 );
@@ -326,25 +388,29 @@ impl MtpBrowser {
         .detach();
     }
 
-    fn delete_entry(
+    fn delete_entries(
         &mut self,
-        handle: ObjectHandle,
-        name: SharedString,
+        entries: Vec<(ObjectHandle, SharedString, bool)>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if entries.is_empty() {
+            return;
+        }
         let Some(session) = &self.session else { return };
         let client = session.client.clone();
         let view = cx.entity().downgrade();
-        let desc_name = name.clone();
+        let description = delete_description(&entries);
+        let window_handle = window.window_handle();
 
         window.open_alert_dialog(cx, move |alert, _, _| {
             let view = view.clone();
-            let name = desc_name.clone();
             let client = client.clone();
+            let entries = entries.clone();
+            let description = description.clone();
             alert
                 .title(t!("dialog.delete.title").to_string())
-                .description(t!("dialog.delete.description", name = name.as_ref()).to_string())
+                .description(description)
                 .button_props(
                     DialogButtonProps::default()
                         .ok_text(t!("dialog.delete.ok").to_string())
@@ -354,22 +420,32 @@ impl MtpBrowser {
                 )
                 .on_ok(move |_, _, cx| {
                     let client = client.clone();
+                    let entries = entries.clone();
                     view.update(cx, |this, cx| {
                         this.status = Some(t!("status.deleting").to_string().into());
                         cx.notify();
                         spawn_mtp(
                             cx,
-                            async move { client.delete(handle).await },
-                            |this, result, cx| match result {
-                                Ok(()) => {
-                                    this.selected_row = None;
-                                    this.load_current_folder(None, cx);
+                            async move {
+                                let mut errors: Vec<(SharedString, String)> = Vec::new();
+                                for (handle, name, _) in entries {
+                                    if let Err(e) = client.delete(handle).await {
+                                        errors.push((name, e.user_message().to_string()));
+                                    }
                                 }
-                                Err(e) => this.set_status(
-                                    t!("error.delete_failed", message = e.user_message())
-                                        .to_string(),
-                                    cx,
-                                ),
+                                errors
+                            },
+                            move |this, errors, cx| {
+                                this.clear_selection(cx);
+                                this.load_current_folder(None, cx);
+                                if !errors.is_empty() {
+                                    open_error_list_dialog(
+                                        window_handle,
+                                        cx,
+                                        t!("dialog.delete_error.title").to_string(),
+                                        errors,
+                                    );
+                                }
                             },
                         );
                     })
@@ -382,36 +458,38 @@ impl MtpBrowser {
     pub(super) fn on_context_import_here(
         &mut self,
         action: &ContextImportHere,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let Some((handle, _, true)) = self.row_entry(action.row_ix, cx) else {
             return;
         };
-        self.import_into(Some(handle), cx);
+        self.import_into(Some(handle), window, cx);
     }
 
     pub(super) fn on_context_import_current(
         &mut self,
         _: &ContextImportCurrent,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let Some(session) = &self.session else { return };
         let parent = session.current_parent();
-        self.import_into(parent, cx);
+        self.import_into(parent, window, cx);
     }
 
     pub(super) fn on_context_export(
         &mut self,
         action: &ContextExport,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some((handle, name, is_folder)) = self.row_entry(action.row_ix, cx) else {
-            return;
+        let entries = if self.selected_rows.contains(&action.row_ix) {
+            self.selected_entries(cx)
+        } else {
+            self.row_entry(action.row_ix, cx).into_iter().collect()
         };
-        self.export_selected(handle, name, is_folder, cx);
+        self.export_entries(entries, window, cx);
     }
 
     pub(super) fn on_context_delete(
@@ -420,10 +498,12 @@ impl MtpBrowser {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some((handle, name, _)) = self.row_entry(action.row_ix, cx) else {
-            return;
+        let entries = if self.selected_rows.contains(&action.row_ix) {
+            self.selected_entries(cx)
+        } else {
+            self.row_entry(action.row_ix, cx).into_iter().collect()
         };
-        self.delete_entry(handle, name, window, cx);
+        self.delete_entries(entries, window, cx);
     }
 
     pub fn on_new_folder(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
@@ -469,21 +549,25 @@ impl MtpBrowser {
                                             return;
                                         }
                                         let client = client.clone();
+                                        let window_handle = window.window_handle();
                                         view.update(cx, |_this, cx| {
+                                            let folder_name: SharedString = name.clone().into();
                                             spawn_mtp(
                                                 cx,
                                                 async move {
                                                     client.create_folder(parent, &name).await
                                                 },
-                                                |this, result, cx| match result {
+                                                move |this, result, cx| match result {
                                                     Ok(_) => this.load_current_folder(None, cx),
-                                                    Err(e) => this.set_status(
-                                                        t!(
-                                                            "error.create_failed",
-                                                            message = e.user_message()
-                                                        )
-                                                        .to_string(),
+                                                    Err(e) => open_error_list_dialog(
+                                                        window_handle,
                                                         cx,
+                                                        t!("dialog.create_folder_error.title")
+                                                            .to_string(),
+                                                        vec![(
+                                                            folder_name,
+                                                            e.user_message().to_string(),
+                                                        )],
                                                     ),
                                                 },
                                             );
@@ -508,16 +592,73 @@ impl MtpBrowser {
         self.new_folder(window, cx);
     }
 
-    pub fn on_import(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_import(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         let Some(session) = &self.session else { return };
         let parent = session.current_parent();
-        self.import_into(parent, cx);
+        self.import_into(parent, window, cx);
     }
 
-    pub fn on_export(&mut self, _: &ClickEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let Some((handle, name, is_folder)) = self.selected_row_info(cx) else {
+    pub fn on_export(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
+        let entries = self.selected_entries(cx);
+        if entries.is_empty() {
             return;
-        };
-        self.export_selected(handle, name, is_folder, cx);
+        }
+        self.export_entries(entries, window, cx);
+    }
+}
+
+fn open_error_list_dialog(
+    window_handle: AnyWindowHandle,
+    cx: &mut App,
+    title: String,
+    errors: Vec<(SharedString, String)>,
+) {
+    window_handle
+        .update(cx, |_, window, cx| {
+            window.open_alert_dialog(cx, move |alert, _, _| {
+                let errors = errors.clone();
+                let title = title.clone();
+                alert
+                    .title(title)
+                    .description(v_flex().gap_1().children(
+                        errors
+                            .into_iter()
+                            .map(|(name, err)| div().child(format!("{name}: {err}"))),
+                    ))
+                    .button_props(
+                        DialogButtonProps::default().ok_text(t!("dialog.ok").to_string()),
+                    )
+            });
+        })
+        .ok();
+}
+
+fn delete_description(entries: &[(ObjectHandle, SharedString, bool)]) -> String {
+    if entries.len() == 1 {
+        t!(
+            "dialog.delete.description",
+            name = entries[0].1.as_ref()
+        )
+        .to_string()
+    } else {
+        const SHOW: usize = 5;
+        let total = entries.len();
+        let mut names: Vec<String> = entries
+            .iter()
+            .take(SHOW)
+            .map(|(_, name, _)| name.to_string())
+            .collect();
+        if total > SHOW {
+            names.push(
+                t!("dialog.delete.and_more", count = total - SHOW).to_string(),
+            );
+        }
+        let names_joined = names.join("\n");
+        t!(
+            "dialog.delete.description_n",
+            count = total,
+            names = names_joined.as_str()
+        )
+        .to_string()
     }
 }
