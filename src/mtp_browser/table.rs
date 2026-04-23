@@ -139,15 +139,27 @@ impl TableDelegate for FolderDelegate {
             );
         }
         if let Some(view) = self.view.clone() {
-            row = row.on_mouse_down(
-                MouseButton::Left,
-                move |e: &MouseDownEvent, _, cx| {
-                    let modifiers = e.modifiers;
-                    let _ = view.update(cx, |this, cx| {
-                        this.handle_row_mouse_down(row_ix, modifiers, cx);
+            let view_move = view.clone();
+            row = row
+                .on_mouse_down(
+                    MouseButton::Left,
+                    move |e: &MouseDownEvent, _, cx| {
+                        let modifiers = e.modifiers;
+                        let _ = view.update(cx, |this, cx| {
+                            this.handle_row_mouse_down(row_ix, modifiers, cx);
+                        });
+                    },
+                )
+                .on_mouse_move(move |e: &MouseMoveEvent, _, cx| {
+                    let left_down = e.pressed_button == Some(MouseButton::Left);
+                    let _ = view_move.update(cx, |this, cx| {
+                        if !left_down {
+                            this.end_drag_select();
+                            return;
+                        }
+                        this.extend_drag_to_row(row_ix, cx);
                     });
-                },
-            );
+                });
         }
         row
     }
@@ -257,10 +269,16 @@ impl TableDelegate for FolderDelegate {
 }
 
 impl MtpBrowser {
-    pub(super) fn render_table(&self, _cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn render_table(&self, cx: &mut Context<Self>) -> AnyElement {
         div()
             .flex_1()
             .overflow_hidden()
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(|this, _: &MouseUpEvent, _, _| {
+                    this.end_drag_select();
+                }),
+            )
             .child(DataTable::new(&self.table).stripe(true).bordered(false))
             .into_any_element()
     }
