@@ -24,6 +24,8 @@ pub struct MtpBrowser {
     status: Option<SharedString>,
     pub(super) selected_rows: BTreeSet<usize>,
     pub(super) anchor_row: Option<usize>,
+    drag_anchor_row: Option<usize>,
+    drag_end_row: Option<usize>,
     suppress_select_row: bool,
     update_info: Option<UpdateInfo>,
     _subscriptions: Vec<Subscription>,
@@ -48,6 +50,8 @@ impl MtpBrowser {
             status: Some(no_devices_found()),
             selected_rows: BTreeSet::new(),
             anchor_row: None,
+            drag_anchor_row: None,
+            drag_end_row: None,
             suppress_select_row: false,
             update_info: None,
             _subscriptions: subscriptions,
@@ -117,11 +121,7 @@ impl MtpBrowser {
         }
         if modifiers.shift {
             let anchor = self.anchor_row.unwrap_or(row_ix);
-            let (lo, hi) = if anchor <= row_ix {
-                (anchor, row_ix)
-            } else {
-                (row_ix, anchor)
-            };
+            let (lo, hi) = sorted_pair(anchor, row_ix);
             if !modifiers.secondary() {
                 self.selected_rows.clear();
             }
@@ -142,11 +142,46 @@ impl MtpBrowser {
             self.selected_rows.clear();
             self.selected_rows.insert(row_ix);
             self.anchor_row = Some(row_ix);
+            self.drag_anchor_row = Some(row_ix);
+            self.drag_end_row = Some(row_ix);
+            // on_click is suppressed during drags, so sync focus eagerly here
+            // or the built-in highlight stays on the previously-clicked row.
+            self.sync_table_focus_to(row_ix, cx);
         }
         // The click event fires next and will emit SelectRow; eat it.
         self.suppress_select_row = true;
         self.push_selection_to_delegate(cx);
         cx.notify();
+    }
+
+    pub(super) fn extend_drag_to_row(&mut self, row_ix: usize, cx: &mut Context<Self>) {
+        let Some(anchor) = self.drag_anchor_row else {
+            return;
+        };
+        if self.drag_end_row == Some(row_ix) {
+            return;
+        }
+        let actual_count = self.table.read(cx).delegate().rows.len();
+        if row_ix >= actual_count {
+            return;
+        }
+        self.drag_end_row = Some(row_ix);
+        let (lo, hi) = sorted_pair(anchor, row_ix);
+        self.selected_rows = (lo..=hi).collect();
+        self.suppress_select_row = true;
+        self.push_selection_to_delegate(cx);
+        cx.notify();
+    }
+
+    pub(super) fn end_drag_select(&mut self) {
+        // If the drag moved off the starting row, on_click won't fire to
+        // consume suppress_select_row — clear it here so the next SelectRow
+        // (e.g. keyboard navigation) isn't swallowed.
+        if self.drag_anchor_row != self.drag_end_row {
+            self.suppress_select_row = false;
+        }
+        self.drag_anchor_row = None;
+        self.drag_end_row = None;
     }
 
     fn check_for_updates(&mut self, cx: &mut Context<Self>) {
@@ -271,6 +306,10 @@ impl MtpBrowser {
             _ => {}
         }
     }
+}
+
+fn sorted_pair(a: usize, b: usize) -> (usize, usize) {
+    if a <= b { (a, b) } else { (b, a) }
 }
 
 impl Render for MtpBrowser {
