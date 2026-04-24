@@ -233,7 +233,7 @@ impl MtpBrowser {
 
         let rx = cx.prompt_for_paths(PathPromptOptions {
             files: true,
-            directories: true,
+            directories: cx.can_select_mixed_files_and_dirs(),
             multiple: true,
             prompt: Some(t!("prompt.import_files_or_folders").to_string().into()),
         });
