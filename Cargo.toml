@@ -68,6 +68,14 @@ depends = [
 [patch.crates-io]
 nusb = { git = "https://github.com/yangkx1024/nusb" }
 
+# Point to my fork with patch that removes legacy window blur API which causes
+# App Store review rejection.
+[patch."https://github.com/zed-industries/zed"]
+gpui = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
+gpui_platform = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
+gpui_web = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
+gpui_macros = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
+
 [profile.release]
 opt-level = "s"
 lto = true
