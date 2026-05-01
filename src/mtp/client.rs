@@ -152,6 +152,12 @@ impl MtpClient {
         Ok(())
     }
 
+    pub async fn rename(&self, handle: ObjectHandle, new_name: &str) -> Result<(), MtpOpError> {
+        let storage = self.device.storage(self.active).await?;
+        storage.rename(handle, new_name).await?;
+        Ok(())
+    }
+
     pub async fn upload_file(
         &self,
         parent: Option<ObjectHandle>,

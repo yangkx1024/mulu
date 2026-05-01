@@ -9,6 +9,7 @@ use rust_i18n::t;
 use super::MtpBrowser;
 use super::actions::{
     ContextDelete, ContextExport, ContextImportCurrent, ContextImportHere, ContextNewFolder,
+    ContextRename,
 };
 use crate::format::format_kind;
 use crate::mtp::FileEntry;
@@ -141,15 +142,12 @@ impl TableDelegate for FolderDelegate {
         if let Some(view) = self.view.clone() {
             let view_move = view.clone();
             row = row
-                .on_mouse_down(
-                    MouseButton::Left,
-                    move |e: &MouseDownEvent, _, cx| {
-                        let modifiers = e.modifiers;
-                        let _ = view.update(cx, |this, cx| {
-                            this.handle_row_mouse_down(row_ix, modifiers, cx);
-                        });
-                    },
-                )
+                .on_mouse_down(MouseButton::Left, move |e: &MouseDownEvent, _, cx| {
+                    let modifiers = e.modifiers;
+                    let _ = view.update(cx, |this, cx| {
+                        this.handle_row_mouse_down(row_ix, modifiers, cx);
+                    });
+                })
                 .on_mouse_move(move |e: &MouseMoveEvent, _, cx| {
                     let left_down = e.pressed_button == Some(MouseButton::Left);
                     let _ = view_move.update(cx, |this, cx| {
@@ -209,11 +207,17 @@ impl TableDelegate for FolderDelegate {
                 Box::new(ContextNewFolder),
             );
         if has_real_row {
-            menu.separator().menu_with_icon(
-                t!("table.menu.delete").to_string(),
-                Icon::new(IconName::Delete),
-                Box::new(ContextDelete { row_ix }),
-            )
+            menu.separator()
+                .menu_with_icon(
+                    t!("table.menu.rename").to_string(),
+                    Icon::new(IconName::Replace),
+                    Box::new(ContextRename { row_ix }),
+                )
+                .menu_with_icon(
+                    t!("table.menu.delete").to_string(),
+                    Icon::new(IconName::Delete),
+                    Box::new(ContextDelete { row_ix }),
+                )
         } else {
             menu
         }

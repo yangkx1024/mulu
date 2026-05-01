@@ -169,9 +169,16 @@ impl MtpBrowser {
                                     ))
                                     .item(
                                         PopupMenuItem::new(folder_label.clone()).on_click(
-                                            window.listener_for(&view, move |this, _, window, cx| {
-                                                this.import_into(Some(folder_handle), window, cx);
-                                            }),
+                                            window.listener_for(
+                                                &view,
+                                                move |this, _, window, cx| {
+                                                    this.import_into(
+                                                        Some(folder_handle),
+                                                        window,
+                                                        cx,
+                                                    );
+                                                },
+                                            ),
                                         ),
                                     )
                                 })
