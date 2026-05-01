@@ -5,6 +5,7 @@ pkgs.mkShell {
     cargo
     rustfmt
     clippy
+    rust-analyzer
     # Add system dependencies here (e.g., openssl, pkg-config)
     pkg-config
     openssl
