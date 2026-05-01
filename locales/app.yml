@@ -102,6 +102,11 @@ table.menu.delete:
   zh-CN: 删除
   zh-HK: 刪除
   ja: 削除
+table.menu.rename:
+  en: Rename…
+  zh-CN: 重命名……
+  zh-HK: 重新命名……
+  ja: 名前を変更…
 
 # File-picker prompts
 prompt.import:
@@ -186,6 +191,11 @@ status.deleting:
   zh-CN: 正在删除……
   zh-HK: 正在刪除……
   ja: 削除中…
+status.renaming:
+  en: Renaming…
+  zh-CN: 正在重命名……
+  zh-HK: 正在重新命名……
+  ja: 名前を変更中…
 status.update_available:
   en: 'New version %{version} available'
   zh-CN: 发现新版本 %{version}
@@ -310,6 +320,11 @@ dialog.create_folder_error.title:
   zh-CN: 创建文件夹失败
   zh-HK: 建立資料夾失敗
   ja: フォルダの作成に失敗しました
+dialog.rename_error.title:
+  en: Rename failed
+  zh-CN: 重命名失败
+  zh-HK: 重新命名失敗
+  ja: 名前の変更に失敗しました
 dialog.ok:
   en: OK
   zh-CN: 确定
@@ -337,6 +352,23 @@ dialog.new_folder.create:
   zh-CN: 创建
   zh-HK: 建立
   ja: 作成
+
+# Rename dialog
+dialog.rename.title:
+  en: Rename
+  zh-CN: 重命名
+  zh-HK: 重新命名
+  ja: 名前を変更
+dialog.rename.placeholder:
+  en: New name
+  zh-CN: 新名称
+  zh-HK: 新名稱
+  ja: 新しい名前
+dialog.rename.confirm:
+  en: Rename
+  zh-CN: 重命名
+  zh-HK: 重新命名
+  ja: 変更
 
 # File kind labels
 kind.folder:

@@ -216,10 +216,7 @@ impl MtpBrowser {
         }
     }
 
-    pub(super) fn single_selected_folder(
-        &self,
-        cx: &App,
-    ) -> Option<(ObjectHandle, SharedString)> {
+    pub(super) fn single_selected_folder(&self, cx: &App) -> Option<(ObjectHandle, SharedString)> {
         if self.selected_rows.len() != 1 {
             return None;
         }
@@ -324,6 +321,7 @@ impl Render for MtpBrowser {
             .on_action(cx.listener(Self::on_context_export))
             .on_action(cx.listener(Self::on_context_delete))
             .on_action(cx.listener(Self::on_context_new_folder))
+            .on_action(cx.listener(Self::on_context_rename))
             .child(TitleBar::new())
             .child(
                 h_flex()

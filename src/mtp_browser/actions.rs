@@ -33,6 +33,12 @@ pub(super) struct ContextDelete {
     pub row_ix: usize,
 }
 
+#[derive(Clone, PartialEq, Debug, gpui::Action)]
+#[action(namespace = mtp_browser, no_json)]
+pub(super) struct ContextRename {
+    pub row_ix: usize,
+}
+
 gpui::actions!(mtp_browser, [ContextImportCurrent, ContextNewFolder]);
 
 impl MtpBrowser {
@@ -350,9 +356,7 @@ impl MtpBrowser {
                                 };
                                 t!(key).to_string()
                             }
-                            (None, None) => {
-                                t!("status.exported_n", count = total).to_string()
-                            }
+                            (None, None) => t!("status.exported_n", count = total).to_string(),
                             (Some(is_folder), Some((_, err))) => {
                                 let key = if is_folder {
                                     "error.export_folder_failed"
@@ -592,6 +596,110 @@ impl MtpBrowser {
         self.new_folder(window, cx);
     }
 
+    pub(super) fn on_context_rename(
+        &mut self,
+        action: &ContextRename,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some((handle, name, _)) = self.row_entry(action.row_ix, cx) {
+            self.rename_entry(handle, name, window, cx);
+        }
+    }
+
+    fn rename_entry(
+        &mut self,
+        handle: ObjectHandle,
+        old_name: SharedString,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(session) = &self.session else { return };
+        let client = session.client.clone();
+        let view = cx.entity().downgrade();
+
+        let input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("dialog.rename.placeholder").to_string())
+                .default_value(old_name.clone())
+        });
+
+        window.open_dialog(cx, {
+            let input = input.clone();
+            move |dialog, _, _| {
+                let input_for_rename = input.clone();
+                let view = view.clone();
+                let client = client.clone();
+                let old_name = old_name.clone();
+                dialog
+                    .title(t!("dialog.rename.title").to_string())
+                    .child(v_flex().py_3().child(Input::new(&input)))
+                    .footer(
+                        DialogFooter::new()
+                            .child(
+                                Button::new("cancel")
+                                    .label(t!("dialog.cancel").to_string())
+                                    .outline()
+                                    .on_click(|_, window, cx| window.close_dialog(cx)),
+                            )
+                            .child({
+                                let view = view.clone();
+                                let client = client.clone();
+                                let old_name = old_name.clone();
+                                Button::new("rename")
+                                    .label(t!("dialog.rename.confirm").to_string())
+                                    .primary()
+                                    .on_click(move |_, window, cx| {
+                                        let new_name =
+                                            input_for_rename.read(cx).value().trim().to_string();
+                                        if new_name.is_empty() || new_name == old_name.as_ref() {
+                                            window.close_dialog(cx);
+                                            return;
+                                        }
+                                        let client = client.clone();
+                                        let window_handle = window.window_handle();
+                                        let item_name = old_name.clone();
+                                        view.update(cx, |this, cx| {
+                                            this.set_status(
+                                                t!("status.renaming").to_string(),
+                                                cx,
+                                            );
+                                            spawn_mtp(
+                                                cx,
+                                                async move {
+                                                    client.rename(handle, &new_name).await
+                                                },
+                                                move |this, result, cx| match result {
+                                                    Ok(()) => {
+                                                        this.load_current_folder(
+                                                            Some(handle),
+                                                            cx,
+                                                        );
+                                                    }
+                                                    Err(e) => open_error_list_dialog(
+                                                        window_handle,
+                                                        cx,
+                                                        t!("dialog.rename_error.title")
+                                                            .to_string(),
+                                                        vec![(
+                                                            item_name,
+                                                            e.user_message().to_string(),
+                                                        )],
+                                                    ),
+                                                },
+                                            );
+                                        })
+                                        .ok();
+                                        window.close_dialog(cx);
+                                    })
+                            }),
+                    )
+            }
+        });
+
+        input.update(cx, |state, cx| state.focus(window, cx));
+    }
+
     pub fn on_import(&mut self, _: &ClickEvent, window: &mut Window, cx: &mut Context<Self>) {
         let Some(session) = &self.session else { return };
         let parent = session.current_parent();
@@ -620,14 +728,14 @@ fn open_error_list_dialog(
                 let title = title.clone();
                 alert
                     .title(title)
-                    .description(v_flex().gap_1().children(
-                        errors
-                            .into_iter()
-                            .map(|(name, err)| div().child(format!("{name}: {err}"))),
-                    ))
-                    .button_props(
-                        DialogButtonProps::default().ok_text(t!("dialog.ok").to_string()),
+                    .description(
+                        v_flex().gap_1().children(
+                            errors
+                                .into_iter()
+                                .map(|(name, err)| div().child(format!("{name}: {err}"))),
+                        ),
                     )
+                    .button_props(DialogButtonProps::default().ok_text(t!("dialog.ok").to_string()))
             });
         })
         .ok();
@@ -635,11 +743,7 @@ fn open_error_list_dialog(
 
 fn delete_description(entries: &[(ObjectHandle, SharedString, bool)]) -> String {
     if entries.len() == 1 {
-        t!(
-            "dialog.delete.description",
-            name = entries[0].1.as_ref()
-        )
-        .to_string()
+        t!("dialog.delete.description", name = entries[0].1.as_ref()).to_string()
     } else {
         const SHOW: usize = 5;
         let total = entries.len();
@@ -649,9 +753,7 @@ fn delete_description(entries: &[(ObjectHandle, SharedString, bool)]) -> String 
             .map(|(_, name, _)| name.to_string())
             .collect();
         if total > SHOW {
-            names.push(
-                t!("dialog.delete.and_more", count = total - SHOW).to_string(),
-            );
+            names.push(t!("dialog.delete.and_more", count = total - SHOW).to_string());
         }
         let names_joined = names.join("\n");
         t!(
