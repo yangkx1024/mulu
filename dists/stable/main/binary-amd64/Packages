@@ -83,14 +83,14 @@ Architecture: amd64
 Version: 1.1.3
 Priority: optional
 Maintainer:
-Installed-Size: 21394
+Installed-Size: 21421
 Depends: libxkbcommon0, libxkbcommon-x11-0, libfontconfig1, libfreetype6, libxcb1, libwayland-client0
 Filename: pool/main/m/mulu/mulu_1.1.3_amd64.deb
-Size: 10895632
-MD5sum: e11a685f04c86ab293907677254a4946
-SHA1: 77a357aa5dfa695f570b7e953f818de7db423fb0
-SHA256: fb8c907188bf2518cd5ae20beb99aba800ee6a8a9c6ef9c43b2132f467687279
-SHA512: 8feb5fbebaf325ad17f8f0ccc55145e6a8129b9c2195a6d5d50233299654c33e7f5e6aa38b13d09a17919a2cdad5183b45b8c1dff3c5e9af1b20e327e7c477a0
+Size: 10909324
+MD5sum: 5e4bf415b09609218907c5c5b37a781d
+SHA1: 16d237b08e64ef2bb612a0051aa4627ff1ec6a4a
+SHA256: bbee1ec97d63703cb5c78ae5bb8d0150dc497af9f2726e384bbd58e28b90a622
+SHA512: d5d1bb657b65da13164dc3504b8ebb65c75f7c15ea9eb5a323c9dab5a8ad9a7af1fd057296144a23939a5aa5ea1d776e5d90d8bf08e7b571f12e8dde6bd18063
 Description: (none)
  (none)
 
