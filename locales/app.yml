@@ -103,10 +103,10 @@ table.menu.delete:
   zh-HK: 刪除
   ja: 削除
 table.menu.rename:
-  en: Rename…
-  zh-CN: 重命名……
-  zh-HK: 重新命名……
-  ja: 名前を変更…
+  en: Rename
+  zh-CN: 重命名
+  zh-HK: 重新命名
+  ja: 名前を変更
 
 # File-picker prompts
 prompt.import:

@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use gpui::*;
 use gpui_component::button::*;
 use gpui_component::dialog::{DialogButtonProps, DialogFooter};
@@ -10,6 +12,9 @@ use crate::model::{Crumb, Session};
 use crate::mtp::{
     DeviceSummary, MtpClient, MtpOpError, ObjectHandle, StorageId, list_devices, spawn_mtp,
 };
+
+/// Dialog submit callback. Returns `true` to close the dialog, `false` to keep it open.
+type DialogSubmit = Rc<dyn Fn(&mut Window, &mut App) -> bool>;
 
 pub(super) fn no_devices_found() -> SharedString {
     t!("status.no_devices").to_string().into()
@@ -524,15 +529,48 @@ impl MtpBrowser {
             InputState::new(window, cx).placeholder(t!("dialog.new_folder.placeholder").to_string())
         });
 
+        let submit: DialogSubmit = Rc::new({
+            let input = input.clone();
+            let view = view.clone();
+            let client = client.clone();
+            move |window, cx| {
+                let name = input.read(cx).value().trim().to_string();
+                if name.is_empty() {
+                    return false;
+                }
+                let client = client.clone();
+                let window_handle = window.window_handle();
+                let folder_name: SharedString = name.clone().into();
+                view.update(cx, |_this, cx| {
+                    spawn_mtp(
+                        cx,
+                        async move { client.create_folder(parent, &name).await },
+                        move |this, result, cx| match result {
+                            Ok(_) => this.load_current_folder(None, cx),
+                            Err(e) => open_error_list_dialog(
+                                window_handle,
+                                cx,
+                                t!("dialog.create_folder_error.title").to_string(),
+                                vec![(folder_name, e.user_message().to_string())],
+                            ),
+                        },
+                    );
+                })
+                .ok();
+                true
+            }
+        });
+
         window.open_dialog(cx, {
             let input = input.clone();
+            let submit = submit.clone();
             move |dialog, _, _| {
-                let input_for_create = input.clone();
-                let view = view.clone();
-                let client = client.clone();
+                let submit_for_ok = submit.clone();
+                let submit_for_button = submit.clone();
                 dialog
                     .title(t!("dialog.new_folder.title").to_string())
                     .child(v_flex().py_3().child(Input::new(&input)))
+                    .on_ok(move |_, window, cx| submit_for_ok(window, cx))
                     .footer(
                         DialogFooter::new()
                             .child(
@@ -541,45 +579,16 @@ impl MtpBrowser {
                                     .outline()
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child({
-                                let view = view.clone();
-                                let client = client.clone();
+                            .child(
                                 Button::new("create")
                                     .label(t!("dialog.new_folder.create").to_string())
                                     .primary()
                                     .on_click(move |_, window, cx| {
-                                        let name = input_for_create.read(cx).value().to_string();
-                                        if name.trim().is_empty() {
-                                            return;
+                                        if submit_for_button(window, cx) {
+                                            window.close_dialog(cx);
                                         }
-                                        let client = client.clone();
-                                        let window_handle = window.window_handle();
-                                        view.update(cx, |_this, cx| {
-                                            let folder_name: SharedString = name.clone().into();
-                                            spawn_mtp(
-                                                cx,
-                                                async move {
-                                                    client.create_folder(parent, &name).await
-                                                },
-                                                move |this, result, cx| match result {
-                                                    Ok(_) => this.load_current_folder(None, cx),
-                                                    Err(e) => open_error_list_dialog(
-                                                        window_handle,
-                                                        cx,
-                                                        t!("dialog.create_folder_error.title")
-                                                            .to_string(),
-                                                        vec![(
-                                                            folder_name,
-                                                            e.user_message().to_string(),
-                                                        )],
-                                                    ),
-                                                },
-                                            );
-                                        })
-                                        .ok();
-                                        window.close_dialog(cx);
-                                    })
-                            }),
+                                    }),
+                            ),
                     )
             }
         });
@@ -624,16 +633,52 @@ impl MtpBrowser {
                 .default_value(old_name.clone())
         });
 
+        let submit: DialogSubmit = Rc::new({
+            let input = input.clone();
+            let view = view.clone();
+            let client = client.clone();
+            let old_name = old_name.clone();
+            move |window, cx| {
+                let new_name = input.read(cx).value().trim().to_string();
+                if new_name.is_empty() || new_name == old_name.as_ref() {
+                    return true;
+                }
+                let client = client.clone();
+                let window_handle = window.window_handle();
+                let item_name = old_name.clone();
+                view.update(cx, |this, cx| {
+                    this.set_status(t!("status.renaming").to_string(), cx);
+                    spawn_mtp(
+                        cx,
+                        async move { client.rename(handle, &new_name).await },
+                        move |this, result, cx| match result {
+                            Ok(()) => {
+                                this.load_current_folder(Some(handle), cx);
+                            }
+                            Err(e) => open_error_list_dialog(
+                                window_handle,
+                                cx,
+                                t!("dialog.rename_error.title").to_string(),
+                                vec![(item_name, e.user_message().to_string())],
+                            ),
+                        },
+                    );
+                })
+                .ok();
+                true
+            }
+        });
+
         window.open_dialog(cx, {
             let input = input.clone();
+            let submit = submit.clone();
             move |dialog, _, _| {
-                let input_for_rename = input.clone();
-                let view = view.clone();
-                let client = client.clone();
-                let old_name = old_name.clone();
+                let submit_for_ok = submit.clone();
+                let submit_for_button = submit.clone();
                 dialog
                     .title(t!("dialog.rename.title").to_string())
                     .child(v_flex().py_3().child(Input::new(&input)))
+                    .on_ok(move |_, window, cx| submit_for_ok(window, cx))
                     .footer(
                         DialogFooter::new()
                             .child(
@@ -642,57 +687,16 @@ impl MtpBrowser {
                                     .outline()
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child({
-                                let view = view.clone();
-                                let client = client.clone();
-                                let old_name = old_name.clone();
+                            .child(
                                 Button::new("rename")
                                     .label(t!("dialog.rename.confirm").to_string())
                                     .primary()
                                     .on_click(move |_, window, cx| {
-                                        let new_name =
-                                            input_for_rename.read(cx).value().trim().to_string();
-                                        if new_name.is_empty() || new_name == old_name.as_ref() {
+                                        if submit_for_button(window, cx) {
                                             window.close_dialog(cx);
-                                            return;
                                         }
-                                        let client = client.clone();
-                                        let window_handle = window.window_handle();
-                                        let item_name = old_name.clone();
-                                        view.update(cx, |this, cx| {
-                                            this.set_status(
-                                                t!("status.renaming").to_string(),
-                                                cx,
-                                            );
-                                            spawn_mtp(
-                                                cx,
-                                                async move {
-                                                    client.rename(handle, &new_name).await
-                                                },
-                                                move |this, result, cx| match result {
-                                                    Ok(()) => {
-                                                        this.load_current_folder(
-                                                            Some(handle),
-                                                            cx,
-                                                        );
-                                                    }
-                                                    Err(e) => open_error_list_dialog(
-                                                        window_handle,
-                                                        cx,
-                                                        t!("dialog.rename_error.title")
-                                                            .to_string(),
-                                                        vec![(
-                                                            item_name,
-                                                            e.user_message().to_string(),
-                                                        )],
-                                                    ),
-                                                },
-                                            );
-                                        })
-                                        .ok();
-                                        window.close_dialog(cx);
-                                    })
-                            }),
+                                    }),
+                            ),
                     )
             }
         });
