@@ -110,3 +110,19 @@ SHA512: 8df51b821010d83e36e13be7949bdc84fbcf0814b71dcead6d8b735d4958ecf752808c34
 Description: (none)
  (none)
 
+Package: mulu
+Architecture: amd64
+Version: 1.2.1
+Priority: optional
+Maintainer:
+Installed-Size: 22576
+Depends: libxkbcommon0, libxkbcommon-x11-0, libfontconfig1, libfreetype6, libxcb1, libwayland-client0
+Filename: pool/main/m/mulu/mulu_1.2.1_amd64.deb
+Size: 11403048
+MD5sum: 5c1c99fb9e6010a3090f5c806575307b
+SHA1: eb1600520b80030c83283282879046d617e70175
+SHA256: c6f0d050482b6089aaea29ccd63d73af11b9a9f626a2b08cd4706f69e833e27f
+SHA512: c6a73898813c2b4f0f2d42e114cbcc3018fc30a3638708d5736caa98a751687e1856354fe0375209dbbf0b2214329a35bf568d8bcbc0b66aee53690ca2723915
+Description: (none)
+ (none)
+

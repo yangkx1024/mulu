@@ -1,24 +1,24 @@
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Sat, 09 May 2026 14:35:29 +0000
+Date: Thu, 25 Jun 2026 09:50:42 +0000
 Description: Mulu apt repository
 Label: Mulu
 Origin: Mulu
 Suite: stable
 MD5Sum:
- 00b806ee4fd7322467cd1894c2107595              165 Release
- 2fbf27ce501fedf1ed896beb1a89df49             4154 main/binary-amd64/Packages
- 4444089783441677a7a9f5337e2f6724             1556 main/binary-amd64/Packages.gz
+ f760b505b4e3485bc10e6ca1ed7931dc              165 Release
+ e7672796666e774cf1dd42ece9c8f336             4748 main/binary-amd64/Packages
+ 4d8e8355df232cd743b465b23a7aaa19             1743 main/binary-amd64/Packages.gz
 SHA1:
- 8178af0778d06831c91956e7b0b19d0945b3b707              165 Release
- 3805ffe733a3db81aa4304924b85dd851f9ba0fd             4154 main/binary-amd64/Packages
- bab2bd968361d4631bff5b0eb02a1ce46735bd6d             1556 main/binary-amd64/Packages.gz
+ aca3489db59d8c6db603d1ff64ff003fcce73df1              165 Release
+ 7f26fd9ae1420ae87c02ac1967ae25dd6298e292             4748 main/binary-amd64/Packages
+ 179b5198e235a9478b62640eb0d0cb06509e72b3             1743 main/binary-amd64/Packages.gz
 SHA256:
- 54c8620f733ac587aee538f39d451902adf2bf7572874f16ac7dea413e841c8b              165 Release
- 7becaf5eca83acbe655d1c89d91cb68e5804dcf4ecaab4717cd39b0522d7bcca             4154 main/binary-amd64/Packages
- 2880db5fa8e74eacf973df8a334dd4af45a035dbacc6df27d8f828a3f4bc79b1             1556 main/binary-amd64/Packages.gz
+ afe3ab437030298aa49384ab81381c17ed1ded34fad4f34a122ebb782fe6fe4e              165 Release
+ 6b9f47a92c19e451b4354f333a77e009416f71c2facb3e402002f3108488f723             4748 main/binary-amd64/Packages
+ d3a22b4cdfec0b3579f919929211452ed43efaa84d955bb7459681b878332ec0             1743 main/binary-amd64/Packages.gz
 SHA512:
- 34a1ef8ca95674c715d3d728f61687d1be27a0f4540232070b2bfdd106eca018e4bb8acd1ddf3745f3e9d37bfd8a49f92b51409b3e08a4a2c3872ec2fdbc6ada              165 Release
- f1992cc6502db462794b55b14b307f085563485dd17ce100d5718f4382f48071ce8e4535c5a8ddde99dd1ccfcb460e61c659c98320b5c10397388aab389c7127             4154 main/binary-amd64/Packages
- dafe3b5eb34b7a4e462fd28fbfa518ee97ba1a1561063c63fa288352ad11edd853276f571a3fd63a192133d10867deec2ce0ba6d472ca2995e1014751f8627db             1556 main/binary-amd64/Packages.gz
+ 8aece5b8998d4d49b227a5d71b5a6001e6a31956a1d5479b6430cb0b848b200f4baf2bbb3738eda6d007c780e4338eb665de5a360fc1e37b903671becee5ee76              165 Release
+ f1c581da231a272312cfd8428901025fcbd24bb0ce49e27423720d1b7f3f9e5512cb407b8f9c4f128c1cde8dec90ae1a977185d81ae8a0259b6a5322fbd133bc             4748 main/binary-amd64/Packages
+ 0a8cc8411f55a35a38df0a97778046cf0a7438b94a566c2b3877ee4cadaad2bd8e791f500197e69e50ebfb21ed6202d126359399f573bc0704fee38191e6b18e             1743 main/binary-amd64/Packages.gz
