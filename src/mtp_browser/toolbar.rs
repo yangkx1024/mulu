@@ -106,7 +106,7 @@ impl MtpBrowser {
             .py_3()
             .border_b_1()
             .border_color(cx.theme().border)
-            .bg(cx.theme().background)
+            .bg(crate::chrome_bg(cx))
             .justify_between()
             .items_center()
             .child(
@@ -236,6 +236,7 @@ impl MtpBrowser {
                                     cx.set_global(crate::ThemeAutoFollow(false));
                                 }
                                 Theme::change(next, Some(window), cx);
+                                crate::tint_theme_for_blur(cx);
                             })),
                     ),
             )
