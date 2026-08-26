@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::*;
-use gpui_component::animation::{Transition, ease_in_out_cubic};
+use gpui_component::animation::{EffectTransition, ease_in_out_cubic};
 use gpui_component::progress::Progress;
 use gpui_component::*;
 use rust_i18n::t;
@@ -172,7 +172,7 @@ impl MtpBrowser {
             .overflow_hidden()
             .child(sidebar_content);
 
-        Transition::new(Duration::from_millis(200))
+        EffectTransition::new(Duration::from_millis(200))
             .ease(ease_in_out_cubic)
             .width(from_w, to_w)
             .apply(
