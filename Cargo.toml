@@ -62,19 +62,11 @@ depends = [
   "wayland",
 ]
 
-# `gpui` 0.2.2 pins `core-foundation = "=0.10.0"`,
+# `gpui` pins `core-foundation = "=0.10.0"`,
 # `mtp-rs` v0.11.0 -> `nusb` v0.2 use `core-foundation = "0.10.1"`.
 # this repo patch it to 0.10.0 to accept the same version until upstream dependencies converge.
 [patch.crates-io]
 nusb = { git = "https://github.com/yangkx1024/nusb" }
-
-# Point to my fork with patch that removes legacy window blur API which causes
-# App Store review rejection.
-[patch."https://github.com/zed-industries/zed"]
-gpui = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
-gpui_platform = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
-gpui_web = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
-gpui_macros = { git = "https://github.com/yangkx1024/zed", branch = "drop-legacy-window-blur" }
 
 [profile.release]
 opt-level = "s"
