@@ -214,6 +214,7 @@ impl MtpBrowser {
                                                 return;
                                             }
                                             set_app_locale(code);
+                                            crate::set_app_menus(cx);
                                             this.relocalize_table(cx);
                                             this.on_locale_changed(cx);
                                             cx.refresh_windows();

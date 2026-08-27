@@ -1,5 +1,12 @@
 _version: 2
 
+# App menu
+menu.quit:
+  en: Quit Mulu
+  zh-CN: 退出 Mulu
+  zh-HK: 結束 Mulu
+  ja: Mulu を終了
+
 # Sidebar
 sidebar.devices:
   en: Devices
