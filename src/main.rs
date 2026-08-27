@@ -8,8 +8,21 @@ use gpui::*;
 use gpui_component::*;
 use gpui_component_assets::Assets;
 use mtp_browser::MtpBrowser;
+use rust_i18n::t;
 
 rust_i18n::i18n!("locales", fallback = "en");
+
+gpui::actions!(mulu, [Quit]);
+
+/// (Re)build the application menu with labels in the current locale. Called at
+/// startup and again whenever the user switches language, since `set_menus`
+/// snapshots the label strings.
+pub fn set_app_menus(cx: &mut App) {
+    cx.set_menus(vec![Menu::new("Mulu").items([MenuItem::action(
+        t!("menu.quit").to_string(),
+        Quit,
+    )])]);
+}
 
 pub struct ThemeAutoFollow(pub bool);
 impl Global for ThemeAutoFollow {}
@@ -88,6 +101,17 @@ fn main() {
         .with_assets(Assets)
         .run(move |cx| {
             gpui_component::init(cx);
+
+            cx.on_action(|_: &Quit, cx| cx.quit());
+            // Bind before `set_app_menus` — the menu item's ⌘Q key equivalent is
+            // looked up in the keymap when the menus are set.
+            #[cfg(target_os = "macos")]
+            cx.bind_keys([KeyBinding::new("cmd-q", Quit, None)]);
+            // Linux has no menu bar and the WM often grabs Super combos, so
+            // use the conventional Ctrl+Q there instead.
+            #[cfg(not(target_os = "macos"))]
+            cx.bind_keys([KeyBinding::new("ctrl-q", Quit, None)]);
+            set_app_menus(cx);
 
             cx.spawn(async move |cx| {
                 cx.open_window(
