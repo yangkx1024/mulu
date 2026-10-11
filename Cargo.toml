@@ -5,8 +5,9 @@ edition = "2024"
 
 [features]
 default = ["updater"]
-# In-app update checker (pings GitHub releases). Mac App Store builds must disable
-# this to comply with guideline 2.4.5 — the store handles updates itself.
+# In-app update checker (pings GitHub releases). Only for self-distributed builds
+# (dmg/deb/pacman); builds whose updates come from elsewhere disable it: the Mac
+# App Store (guideline 2.4.5) and package managers such as Nix.
 updater = ["dep:ureq", "dep:serde", "dep:semver"]
 
 [dependencies]
@@ -44,6 +45,8 @@ category = "Utility"
 minimum-system-version = "12.0"
 
 [package.metadata.packager.deb]
+# Also used for pacman; shared with the Nix package.
+desktop-template = "mulu.desktop"
 depends = [
   "libxkbcommon0",
   "libxkbcommon-x11-0",

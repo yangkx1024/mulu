@@ -2,8 +2,6 @@
   lib,
   rustPlatform,
   pkg-config,
-  copyDesktopItems,
-  makeDesktopItem,
   fontconfig,
   freetype,
   libxkbcommon,
@@ -25,6 +23,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
       ../src
       ../locales
       ../linux-icons
+      ../mulu.desktop
     ];
   };
 
@@ -36,10 +35,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # Upstream has no test suite; `cargo test` would only rebuild the crate graph.
   doCheck = false;
 
-  nativeBuildInputs = [
-    pkg-config
-    copyDesktopItems
-  ];
+  nativeBuildInputs = [ pkg-config ];
 
   buildInputs = [
     fontconfig
@@ -48,18 +44,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
     libxcb
   ];
 
-  desktopItems = [
-    (makeDesktopItem {
-      name = "mulu";
-      exec = "mulu";
-      icon = "mulu";
-      desktopName = "Mulu";
-      comment = finalAttrs.meta.description;
-      categories = [ "Utility" ];
-    })
-  ];
-
   postInstall = ''
+    install -Dm644 mulu.desktop -t $out/share/applications
     for icon in linux-icons/*.png; do
       install -Dm644 "$icon" "$out/share/icons/hicolor/$(basename "$icon" .png)/apps/mulu.png"
     done
