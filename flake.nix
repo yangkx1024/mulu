@@ -24,6 +24,30 @@
         }
       );
 
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.mkShell {
+          inputsFrom = [ self.packages.${pkgs.stdenv.hostPlatform.system}.mulu ];
+
+          packages = with pkgs; [
+            clippy
+            rustfmt
+            rust-analyzer
+          ];
+
+          RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
+
+          # `cargo run` binaries lack the rpath that package.nix patches in.
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+            with pkgs;
+            [
+              libGL
+              vulkan-loader
+              wayland
+            ]
+          );
+        };
+      });
+
       overlays.default = final: _prev: {
         mulu = final.callPackage ./nix/package.nix { };
       };
