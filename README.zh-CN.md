@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/yangkx1024/mulu/actions/workflows/ci.yml/badge.svg)](https://github.com/yangkx1024/mulu/actions/workflows/ci.yml)
 
-基于 [gpui](https://gpui.rs) ， [gpui-component](https://longbridge.github.io/gpui-component) 和 [mtp-rs](https://github.com/vdavid/mtp-rs) 构建的跨平台MTP客户端。简单易用且极致轻量。
+基于 [gpui](https://gpui.rs) ， [gpui-component](https://gpui-kit.com) 和 [mtp-rs](https://github.com/vdavid/mtp-rs) 构建的跨平台MTP客户端。简单易用且极致轻量。
 
 <img alt="Icon" src="./screenshots/app_screenshot.webp" />
 

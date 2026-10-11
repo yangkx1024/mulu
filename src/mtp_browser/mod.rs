@@ -311,9 +311,6 @@ fn sorted_pair(a: usize, b: usize) -> (usize, usize) {
 
 impl Render for MtpBrowser {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let dialog_layer = Root::render_dialog_layer(window, cx);
-        let notification_layer = Root::render_notification_layer(window, cx);
-
         v_flex()
             .size_full()
             .on_action(cx.listener(Self::on_context_import_here))
@@ -339,7 +336,5 @@ impl Render for MtpBrowser {
                             .child(self.render_status_bar(cx)),
                     ),
             )
-            .children(dialog_layer)
-            .children(notification_layer)
     }
 }

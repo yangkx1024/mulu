@@ -21,7 +21,7 @@ Mulu is a macOS/Linux desktop app that browses files on MTP devices (Android pho
 
 ## Git-sourced dependencies
 
-`Cargo.toml` patches `nusb` to `https://github.com/yangkx1024/nusb` to pin `core-foundation = 0.10.0` to match GPUI's pin. `gpui` and `gpui-component` are also pulled from git (Zed and Longbridge's forks), so the first build is slow and network-dependent.
+`gpui-component` and `gpui-kit-assets` are pulled from git (`https://github.com/longbridge/gpui-kit`), so the first build is slow and network-dependent. gpui-kit builds against the `gpui-pre-*` crates.io snapshots of Zed's GPUI and pins an exact version; `gpui` / `gpui_platform` in `Cargo.toml` alias `gpui-pre` / `gpui-pre-platform` and must match that pin (check gpui-kit's root `Cargo.toml` when bumping), otherwise two GPUI copies get linked and nothing type-checks.
 
 ## Architecture
 

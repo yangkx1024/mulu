@@ -6,7 +6,7 @@ mod update_check;
 
 use gpui::*;
 use gpui_component::*;
-use gpui_component_assets::Assets;
+use gpui_kit_assets::Assets;
 use mtp_browser::MtpBrowser;
 use rust_i18n::t;
 
