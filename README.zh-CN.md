@@ -36,6 +36,28 @@ sudo apt install mulu
 makepkg -si
 ```
 
+## Nix / NixOS
+
+仓库本身是一个 flake，支持 `x86_64-linux` 和 `aarch64-linux`：
+
+```sh
+# 免安装直接运行
+nix run github:yangkx1024/mulu
+
+# 安装到用户 profile
+nix profile install github:yangkx1024/mulu
+```
+
+NixOS 用户可以把 `github:yangkx1024/mulu` 加为 flake input，然后安装 `inputs.mulu.packages.${pkgs.stdenv.hostPlatform.system}.default`；或者应用 `inputs.mulu.overlays.default` 后使用 `pkgs.mulu`。此构建通过 Nix 更新，因此关闭了应用内的更新检查。
+
+Mulu 需要有权限打开手机的 USB 设备。如果识别不到手机或打开失败，请添加 libmtp 的 udev 规则，它会把访问权限授予当前登录用户：
+
+```nix
+services.udev.packages = [ pkgs.libmtp ];
+```
+
+如果 Mulu 提示设备忙，说明有其他 MTP 客户端（例如 gvfs 或 KDE 的 kio-mtp）占用了会话，请先在文件管理器中卸载手机。
+
 ## 校验 Linux 发行版
 
 Linux 安装包（`.deb`、`.tar.gz`）同时使用 [minisign](https://jedisct1.github.io/minisign/) 对文件级签名，公钥保存在 [`minisign.pub`](./minisign.pub)。
@@ -51,6 +73,7 @@ rsign verify mulu_X.Y.Z_amd64.deb -p minisign.pub -x mulu_X.Y.Z_amd64.deb.minisi
 
 1. 直接`cargo run --release`运行二进制。或者
 2. `cargo packager --release` （需要先安装 [`cargo-packager`](https://crates.io/crates/cargo-packager)），会在build/release目录下生成app文件。
+3. 使用 Nix：`nix develop` 进入包含工具链和系统库的开发环境；`nix build` 构建软件包，产物位于 `./result`。
 
 # License
 

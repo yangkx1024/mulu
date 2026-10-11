@@ -36,6 +36,28 @@ Each release ships a `PKGBUILD` alongside a `mulu_*.tar.gz` source tarball. Down
 makepkg -si
 ```
 
+## Nix / NixOS
+
+The repository is a flake for `x86_64-linux` and `aarch64-linux`:
+
+```sh
+# Run without installing
+nix run github:yangkx1024/mulu
+
+# Install into your user profile
+nix profile install github:yangkx1024/mulu
+```
+
+On NixOS, add `github:yangkx1024/mulu` as a flake input and install `inputs.mulu.packages.${pkgs.stdenv.hostPlatform.system}.default`, or apply `inputs.mulu.overlays.default` and use `pkgs.mulu`. Updates come through Nix, so the in-app update check is disabled in this build.
+
+Mulu needs permission to open the phone's USB device. If the phone is not detected or fails to open, add libmtp's udev rules, which grant access to the logged-in user:
+
+```nix
+services.udev.packages = [ pkgs.libmtp ];
+```
+
+If Mulu reports the device as busy, another MTP client (such as gvfs or KDE's kio-mtp) holds the session; unmount the phone in your file manager first.
+
 ## Verify Linux releases
 
 Linux packages (`.deb`, `.tar.gz`) are also signed with [minisign](https://jedisct1.github.io/minisign/) for file-level verification. The public key lives at [`minisign.pub`](./minisign.pub).
@@ -51,6 +73,7 @@ rsign verify mulu_X.Y.Z_amd64.deb -p minisign.pub -x mulu_X.Y.Z_amd64.deb.minisi
 
 1. Run `cargo run --release` directly. Or
 2. `cargo packager --release` (requires [`cargo-packager`](https://crates.io/crates/cargo-packager) to be installed) — produces an app bundle under `build/release/`.
+3. With Nix: `nix develop` opens a shell with the toolchain and system libraries; `nix build` builds the package into `./result`.
 
 # License
 

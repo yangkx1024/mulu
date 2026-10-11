@@ -15,6 +15,9 @@ Mulu is a macOS/Linux desktop app that browses files on MTP devices (Android pho
   - `direct` (default): signed+notarized `.dmg` via `cargo-packager`. Requires `.env` with `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`, `APPLE_SIGNING_IDENTITY`, and the signing identity in the keychain.
   - `mas`: Mac App Store `.pkg` at `target/mas/Mulu.pkg`. Builds with `--no-default-features` so the `updater` feature is compiled out (MAS guideline 2.4.5). Requires `.env` with `APPLE_TEAM_ID`, `MAS_APP_SIGNING_IDENTITY`, `MAS_INSTALLER_SIGNING_IDENTITY`, `MAS_PROVISIONING_PROFILE`.
   - Both modes temporarily rewrite `Cargo.toml` because `cargo-packager -c` replaces rather than merges.
+- `nix develop` / `nix build` — Nix dev shell / package (`flake.nix`, `nix/package.nix`, Linux only, `updater` disabled). Flakes only see git-tracked files, so `git add -N` new files before building.
+  - After any `Cargo.lock` change, refresh `cargoHash` in `nix/package.nix`: `nix run nixpkgs#nix-update -- --flake --version=skip mulu`. CI (`.github/workflows/nix.yml`) fails on a stale hash.
+  - `mulu.desktop` is shared by the Nix package and cargo-packager's deb/pacman (`desktop-template`); its name must match the window `app_id` (`"mulu"`, set in `main.rs`).
 
 ## Git-sourced dependencies
 
