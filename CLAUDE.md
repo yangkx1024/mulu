@@ -17,6 +17,7 @@ Mulu is a macOS/Linux desktop app that browses files on MTP devices (Android pho
   - Both modes temporarily rewrite `Cargo.toml` because `cargo-packager -c` replaces rather than merges.
 - `nix develop` / `nix build` — Nix dev shell / package (`flake.nix`, `nix/package.nix`, Linux only, `updater` disabled). Flakes only see git-tracked files, so `git add -N` new files before building.
   - After any `Cargo.lock` change, refresh `cargoHash` in `nix/package.nix`: `nix run nixpkgs#nix-update -- --flake --version=skip mulu`. CI (`.github/workflows/nix.yml`) fails on a stale hash.
+  - `nix fmt` formats the Nix files (nixfmt via `nixfmt-tree`); CI runs `nix fmt -- --ci`.
   - `mulu.desktop` is shared by the Nix package and cargo-packager's deb/pacman (`desktop-template`); its name must match the window `app_id` (`"mulu"`, set in `main.rs`).
 
 ## Git-sourced dependencies

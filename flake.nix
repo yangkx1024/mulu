@@ -48,6 +48,8 @@
         };
       });
 
+      formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
+
       overlays.default = final: _prev: {
         mulu = final.callPackage ./nix/package.nix { };
       };

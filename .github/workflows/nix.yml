@@ -28,9 +28,15 @@ on:
       - "nix/**"
       - ".github/workflows/nix.yml"
 
+concurrency:
+  group: nix-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  build:
-    name: Nix Build
+  # Fast gate for PRs: catches the common breakage (a Cargo.lock change without
+  # a cargoHash refresh) by vendoring dependencies only, without compiling.
+  check:
+    name: Nix Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +44,31 @@ jobs:
       - uses: cachix/install-nix-action@v31
 
       - name: Check formatting
-        run: nix run nixpkgs#nixfmt -- --check flake.nix nix/package.nix
+        run: nix fmt -- --ci
 
-      - name: Build
+      - name: Check cargoHash
         run: |
-          if ! nix build -L .#mulu; then
-            echo "::error::nix build failed. If Cargo.lock changed, refresh cargoHash with: nix run nixpkgs#nix-update -- --flake --version=skip mulu"
+          hint="cargoHash is out of date. Refresh it with: nix run nixpkgs#nix-update -- --flake --version=skip mulu"
+          if ! vendor=$(nix build -L --no-link --print-out-paths .#mulu.cargoDeps); then
+            echo "::error::$hint"
             exit 1
           fi
+          # A stale hash can still resolve to an old vendor dir from a binary cache.
+          if ! diff -u "$vendor/Cargo.lock" Cargo.lock; then
+            echo "::error::$hint"
+            exit 1
+          fi
+
+  # Full release build (~10 min); runs after merge or on manual dispatch.
+  build:
+    name: Nix Build
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      - name: Build
+        run: nix build -L .#mulu
