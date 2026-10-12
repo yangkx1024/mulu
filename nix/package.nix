@@ -27,7 +27,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     ];
   };
 
-  cargoHash = "sha256-ljsimHGGmFvwZHVKifDF63WDhhSEBf827zosIX/akhw=";
+  cargoHash = "sha256-u8/J+PHtTN/zptsf3s4rBcJOXeDQC0sHfEwJZGZzXBc=";
 
   # The in-app updater pings GitHub releases; Nix users update through Nix.
   buildNoDefaultFeatures = true;
