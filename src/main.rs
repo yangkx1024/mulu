@@ -6,7 +6,7 @@ mod update_check;
 
 use gpui::*;
 use gpui_component::*;
-use gpui_component_assets::Assets;
+use gpui_kit_assets::Assets;
 use mtp_browser::MtpBrowser;
 use rust_i18n::t;
 
@@ -122,6 +122,9 @@ fn main() {
                         })),
                         titlebar: Some(TitleBar::title_bar_options()),
                         window_background: WindowBackgroundAppearance::Blurred,
+                        // Wayland app_id / X11 WM_CLASS. Must match `mulu.desktop`
+                        // so the desktop can pair the window with its icon.
+                        app_id: Some("mulu".into()),
                         ..Default::default()
                     },
                     |window, cx| {

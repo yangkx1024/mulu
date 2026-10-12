@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mulu
+Comment=Lightweight MTP client for browsing files on Android phones and cameras
+Exec=mulu
+Icon=mulu
+Terminal=false
+Categories=Utility;
+Keywords=MTP;Android;Phone;Camera;File;Transfer;
+StartupWMClass=mulu
