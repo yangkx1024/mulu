@@ -15,6 +15,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
   pname = "mulu";
   version = (lib.importTOML ../Cargo.toml).package.version;
 
+  __structuredAttrs = true;
+
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [
